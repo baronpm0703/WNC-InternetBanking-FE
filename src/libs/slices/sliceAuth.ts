@@ -8,10 +8,31 @@ export type AuthCredentials = {
     password: string;
 }
 
+export interface pathPayload {
+    payload: AuthRoutes;
+    type: string;
+}
+// Define the enum for the authentication process
+export enum AuthRoutes {
+    LOGIN = "Login",
+    FORGOT_PASSWORD = "Forgot Password",
+    VERIFY_CODE = "Verify Code",
+    RESET_PASSWORD = "Reset Password",
+}
+
+export const AuthRouteDescriptions: { [key in AuthRoutes]: string } = {
+    [AuthRoutes.LOGIN]: "Welcome back! Please log in to access your account.",
+    [AuthRoutes.FORGOT_PASSWORD]: "Don’t worry, happens to all of us. Enter your email below to recover your password",
+    [AuthRoutes.VERIFY_CODE]: "An authentication code has been sent to your email.",
+    [AuthRoutes.RESET_PASSWORD]: "Your previous password has been resetted. Please set a new password for your account.",
+};
+
 interface AuthState {
     token: string | null;
     loading: boolean;
     approve: boolean;
+    path: AuthRoutes;
+    description: string;
     isSubmit: boolean;
     error: string | null; 
 }
@@ -21,6 +42,8 @@ const initialState: AuthState = {
     loading: false,
     approve: false,
     isSubmit: false,
+    path: AuthRoutes.LOGIN,
+    description: AuthRouteDescriptions[AuthRoutes.LOGIN],
     error: null,
 }
 
@@ -56,6 +79,10 @@ export const sliceAuth = createSlice({
             state.token = null;
             state.error = null;
             state.loading = false;
+        },
+        setPath: (state, action: pathPayload) => {
+            state.path = action.payload;
+            state.description = AuthRouteDescriptions[action.payload];
         }
     },
     extraReducers: (builder) => {
@@ -83,5 +110,5 @@ export const sliceAuth = createSlice({
     }
 })
 
-export const { logout } = sliceAuth.actions;
+export const { logout, setPath } = sliceAuth.actions;
 export const authReducer = sliceAuth.reducer;
