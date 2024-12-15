@@ -40,3 +40,164 @@
 .read-the-docs {
   color: #888;
 }
+
+
+@font-face {
+  font-family: "Poppins";
+  src: url("./fonts/poppins/Poppins-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Poppins-Medium";
+  src: url("./fonts/poppins/Poppins-Medium.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Poppins-Bold";
+  src: url("./fonts/poppins/Poppins-Bold.ttf") format("truetype");
+}
+
+.lp-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background-color: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+  height: 64px; /* Đảm bảo header có chiều cao cố định */
+}
+
+.main-content {
+  padding-top: calc(64px + 1rem); /* Ví dụ thêm khoảng cách khi cần */
+}
+
+/* this is for general button css */
+.header-button, .button {
+    font-size: 1rem !important;
+    padding: 1.25rem 1.5rem !important;
+    font-family: Poppins-Bold, sans-serif !important;
+}
+
+.outline-button {
+  background:  black !important;
+  color: #B9FF66 !important;
+  border: 1px solid #B9FF66 !important;
+  cursor: pointer !important;
+  transition: border 0.5s ease, background-color 0.5s ease !important;
+}
+
+.outline-button:hover {
+  background: linear-gradient(to top right, #b9ff66, #9de8ee) !important;
+  color: black !important;
+  border: 1px solid black !important;
+  box-shadow: 0px 4px 0px #ffffff !important; 
+}
+
+.primary-button {
+  background: linear-gradient(to top right, #b9ff66, #9de8ee) !important;
+  color: black !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  font-size: 1rem !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  transition: border 0.5s ease, background-color 0.5s ease !important;
+}
+
+.primary-button:hover {
+  box-shadow: 0px 4px 0px #ffffff !important; 
+  border: 1px solid black !important;
+}
+
+.primary-button:focus {
+  outline: none !important;
+}
+
+#signin-button{
+    background:  black !important;
+    color: #B9FF66 !important;
+    border: 1px solid #B9FF66 !important;
+    cursor: pointer !important;
+    transition: border 0.5s ease, background-color 0.5s ease !important;
+}
+
+#signin-button:hover {
+  background: linear-gradient(to top right, #b9ff66, #9de8ee) !important;
+  color: black !important;
+  border: 1px solid black !important;
+  box-shadow: 0px 4px 0px #ffffff !important; 
+}
+
+#signup-button {
+  background: linear-gradient(to top right, #b9ff66, #9de8ee) !important;
+  color: black !important;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
+  font-size: 1rem !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  transition: border 0.5s ease, background-color 0.8s ease !important;
+}
+
+#signup-button:hover {
+  box-shadow: 0px 4px 0px #ffffff !important; 
+  border: 1px solid black !important;
+}
+
+#signup-button:focus {
+  outline: none !important;
+}
+
+#explore-button {
+  background-color: white !important;
+  color: black !important;
+  font-family: Poppins-Bold, sans-serif !important;
+  box-shadow: 0px 4px 0px #000000; 
+  transition: all .5s ease !important;
+}
+
+/* this is for "explore more/view more" button css */
+
+.explore-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 0.5rem 0.5rem; 
+  font-size: 1rem;
+  font-weight: bold;
+  background-color: white !important;
+  color: rgb(0, 0, 0) !important;
+  border: none;
+  text-decoration: none;
+  box-shadow: 0px 4px 0px #000000 !important; 
+  white-space: nowrap; /* Prevent text wrapping */
+  overflow: hidden; /* Ensure clipped elements are hidden */
+  transition: gap 0.3s ease, padding-right 0.3s ease; /* Smooth gap and padding transitions */
+}
+
+.explore-button span {
+  transform: translateX(+1em);
+  transition: transform 0.3s ease; /* Smoothly slide the text */
+}
+
+.explore-button .icon {
+  opacity: 0; /* Initially invisible */
+  transform: translateX(-1em); /* Start the icon off-screen */
+  clip-path: circle(0%); /* Clip the icon fully */
+  transition: clip-path 0.3s ease, transform 0.3s ease 0.3s, opacity 0.3s ease 0.3s; /* Smoothly reveal */
+}
+
+.explore-button:hover {
+  gap: 1rem; /* Add gap for the icon */
+  padding-right: 1.5rem; /* Increase padding for the icon space */
+}
+
+.explore-button:hover span {
+  transform: translateX(0);
+  transition: transform 0.3s ease; /* Smoothly slide the text */
+}
+
+.explore-button:hover .icon {
+  opacity: 1; /* Make the icon visible */
+  transform: translateX(0); /* Slide the icon into position */
+  clip-path: circle(100%); /* Reveal the icon */
+}
