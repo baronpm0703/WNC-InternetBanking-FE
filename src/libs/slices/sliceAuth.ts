@@ -1,5 +1,4 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { setCacheToken } from "../../helper/cacheToken";
 
 const destination_server = "http://localhost:3000";
 

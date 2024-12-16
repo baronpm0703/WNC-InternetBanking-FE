@@ -1,19 +1,19 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
-import AuthScreen from './component/Login-Components'
-import { LoginForm } from './component/Login-Components/loginForm'
-import { ForgotPasswordForm } from './component/Login-Components/forgotPasswordForm'
-import { VerifyCode } from './component/Login-Components/verifyCode'
-import { ResetPassword } from './component/Login-Components/resetPassword'
+// import AuthScreen from './component/Login-Components'
+// import { LoginForm } from './component/Login-Components/loginForm'
+// import { ForgotPasswordForm } from './component/Login-Components/forgotPasswordForm'
+// import { VerifyCode } from './component/Login-Components/verifyCode'
+// import { ResetPassword } from './component/Login-Components/resetPassword'
 import { Toaster } from './components/ui/toaster'
-import Dashboard from './component/Dashboard-Components'
-import TransferUI from './component/Dashboard-Components/transferMoney'
+// import Dashboard from './component/Dashboard-Components'
+// import TransferUI from './component/Dashboard-Components/transferMoney'
 
 function App() {
   return (
     <BrowserRouter>
       <Toaster />
       <Routes>
-        <Route path="/" element={<Navigate to="/auth" replace />} />
+        {/* <Route path="/" element={<Navigate to="/auth" replace />} />
         <Route path="/auth" element={<AuthScreen />} >
           <Route index element={<Navigate to={"login"} replace />} />
           <Route path="login" element={<LoginForm />} />
@@ -30,7 +30,7 @@ function App() {
           <Route path="help-center" element={<TransferUI/>} />
           <Route path="profile" element={<TransferUI/>} />
           <Route path="logout" element={<Navigate to="/auth" replace/>} />
-        </Route>
+        </Route> */}
       </Routes>
     </BrowserRouter>
   )
