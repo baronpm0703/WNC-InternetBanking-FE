@@ -4,11 +4,17 @@ import './index.css'
 import App from './App.tsx'
 import { Provider } from 'react-redux'
 import { root } from './libs/store.tsx'
+import { UserProvider } from './Context/useAuth.tsx'
+import { RouterProvider } from 'react-router-dom'
+import { router } from './Router/Routes.tsx'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={root}>
-      <App />
+      {/* <UserProvider>
+        <App />
+      </UserProvider> */}
+      <RouterProvider router={router}/>
     </Provider>
   </StrictMode>,
 )

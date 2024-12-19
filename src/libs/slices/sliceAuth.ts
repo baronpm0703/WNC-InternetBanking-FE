@@ -1,15 +1,24 @@
+import apiClient from "@/helper/apiClient";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
-import { setCacheToken } from "../../helper/cacheToken";
 
-const destination_server = "http://localhost:3000";
+export const destination_server = "http://localhost:3000";
 
 export type AuthCredentials = {
     email: string;
     password: string;
 }
 
+export type AuthToken = {
+    access_token: string;
+    refresh_token: string;
+}
+
 export interface pathPayload {
     payload: AuthRoutes;
+    type: string;
+}
+export interface slicePayload<T> {
+    payload: T;
     type: string;
 }
 // Define the enum for the authentication process
@@ -28,7 +37,7 @@ export const AuthRouteDescriptions: { [key in AuthRoutes]: string } = {
 };
 
 interface AuthState {
-    token: string | null;
+    token: AuthToken | null;
     loading: boolean;
     approve: boolean;
     path: AuthRoutes;
@@ -47,27 +56,48 @@ const initialState: AuthState = {
     error: null,
 }
 
-export const submit = createAsyncThunk(
-    'auth/submit',
-    async (credentials: {email: string, password: string}, {rejectWithValue}) => {
-        console.log("Verify with: ", credentials);
-        await new  Promise((resolve) => setTimeout(resolve, 500));
-        let body = {
-            username: credentials.email,
-            password: credentials.password
+export const submitInfo = createAsyncThunk(
+    "auth/submitInfo",
+    async (credentials: AuthCredentials, {rejectWithValue}) => {
+        try {
+            const { email, password } = credentials;
+
+            // Simulate delay for testing
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            const body = { email, password };
+            const response = await apiClient.post("accounts/sign-in", body);
+
+            // Return token or other response data
+            return response.data; // Axios automatically parses JSON
+        } catch (error: any) {
+            // Handle errors and return a rejected value
+            console.log("error: ", error)
+            return rejectWithValue(
+                error.response?.data || "An unexpected error occurred"
+            );
         }
-        let response = await fetch(`${destination_server}/auth/login`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(body),
-        });
-        let data = await response.json();
-        if (response.ok) {
-            return data.access_token;
+    }
+)
+
+export const submitRefreshToken = createAsyncThunk(
+    'auth/refreshToken',
+    async (_: void, {rejectWithValue}) => {
+        try {
+            // Simulate delay for testing
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            const response = await apiClient.get("accounts/hello");
+
+            // Return token or other response data
+            return response.data; // Axios automatically parses JSON
+        } catch (error: any) {
+            // Handle errors and return a rejected value
+            console.log("error: ", error)
+            return rejectWithValue(
+                error.response?.data || "An unexpected error occurred"
+            );
         }
-        return rejectWithValue("Login failed");
     }
 )
 
@@ -79,36 +109,50 @@ export const sliceAuth = createSlice({
             state.token = null;
             state.error = null;
             state.loading = false;
+            window.location.href = "/";
         },
         setPath: (state, action: pathPayload) => {
             state.path = action.payload;
             state.description = AuthRouteDescriptions[action.payload];
+        },
+        newToken: (state, action: slicePayload<AuthToken>) => {
+            state.token = action.payload;
         }
     },
     extraReducers: (builder) => {
         builder
-            .addCase(submit.pending, (state) => {
+            .addCase(submitInfo.pending, (state) => {
                 state.loading = true;
-                state.isSubmit = true;
                 state.error = null;
             })
-            .addCase(submit.fulfilled, (state, action) => {
-                state.loading = false;
+            .addCase(submitInfo.fulfilled, (state, action) => {
                 state.token = action.payload;
+                state.loading = false;
                 state.approve = true;
                 state.error = null;
-                localStorage.setItem("token", action.payload);
-                let {email, password} = action.payload;
-                console.log("Approve Login with: ", email, password);
+                localStorage.setItem("token", JSON.stringify(action.payload));
             })
-            .addCase(submit.rejected, (state, action) => {
+            .addCase(submitInfo.rejected, (state, action) => {
                 state.loading = false;
-                state.error = "Login failed";
-                state.approve = false;
-                console.log("Login failed with: ", action.payload);
+                state.error = action.payload as string;
+                console.log(action.payload);
+            })
+            .addCase(submitRefreshToken.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(submitRefreshToken.fulfilled, (state, action) => {
+                state.loading = false;
+                state.approve = true;
+                console.log(action.payload);
+            })
+            .addCase(submitRefreshToken.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+                console.log(action.payload);
             })
     }
 })
 
-export const { logout, setPath } = sliceAuth.actions;
+export const { logout, setPath, newToken } = sliceAuth.actions;
 export const authReducer = sliceAuth.reducer;

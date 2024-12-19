@@ -1,10 +1,11 @@
 import { useAppSelector } from "@/libs/hooks";
 import React from "react";
-import { Outlet, Link } from "react-router-dom";
+import { Outlet, Link, Navigate } from "react-router-dom";
+import LoadingSpinner from "../Assists-Components/loadingSpinner";
 
 const AuthScreen: React.FC = () => {
-    const { path, description } = useAppSelector((state) => state.auth);
-    
+    const { path, description, loading, approve } = useAppSelector((state) => state.auth);
+
     return (
         <div className="w-screen h-screen py-10 px-4 sm:px-10 relative">
             <div className="flex flex-row w-full justify-between bg-transparent text-white absolute py-10 ps-16 pe-32">
@@ -58,9 +59,17 @@ const AuthScreen: React.FC = () => {
                     <p className="text-gray-400 text-center mb-8">
                         {description}
                     </p>
-                    <div className="max-w-md mx-auto">
-                        <Outlet/>
-                    </div>
+                    {loading ? (
+                            <LoadingSpinner />
+                        ) : approve ? (
+                            <Navigate to="/dashboard" />
+                        ) : (
+                            <div className="max-w-md mx-auto">
+                                <Outlet />
+                            </div>
+                        )
+                    }
+
                 </div>
             </div>
         </div>

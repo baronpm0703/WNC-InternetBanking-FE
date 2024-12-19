@@ -16,8 +16,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
-import { useAppDispatch } from "@/libs/hooks";
-import { AuthRoutes, setPath } from "@/libs/slices/sliceAuth";
+import { useAppDispatch, useAppSelector } from "@/libs/hooks";
+import { AuthRoutes, AuthToken, setPath, submitInfo } from "@/libs/slices/sliceAuth";
+import { redirect } from "react-router-dom";
 
 const FormSchema = z.object({
     email: z.string().email({
@@ -27,6 +28,17 @@ const FormSchema = z.object({
         message: "Password must be at least 3 characters long.",
     }),
 });
+export type JWTPAYLOAD = {
+    sub: string;
+    email: string;
+    iat: number;
+    exp: number;
+    iss: string;
+    aud: string;
+    jti: string;
+    scope: string;
+    token_type: string;
+}
 
 export function LoginForm() {
     const [showPassword, setShowPassword] = useState(false);
@@ -34,6 +46,12 @@ export function LoginForm() {
     useEffect(() => {
         dispatch(setPath(AuthRoutes.LOGIN));
     }, []);
+    useEffect(() => {
+        let token: AuthToken | null = null;
+        if (localStorage.getItem("token")) {
+            token = JSON.parse(localStorage.getItem("token") as string) as AuthToken;
+        }
+    }, [])
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
@@ -51,8 +69,24 @@ export function LoginForm() {
                 </pre>
             ),
         });
+        dispatch(submitInfo(data));
     }
 
+    useEffect(() => {
+        let token: AuthToken | null = null;
+        if (localStorage.getItem("token")) {
+            token = JSON.parse(localStorage.getItem("token") as string) as AuthToken;
+        }
+        if (token) {
+            let UAT_info: JWTPAYLOAD = JSON.parse(atob(token.access_token.split(".")[1]));
+            console.log(UAT_info)
+            if (UAT_info.exp >= Date.now()) {
+                redirect('/dashboard');
+            } else {
+                console.log("UAT expired")
+            }
+        }
+    }, [])
     return (
         <>
             <Form {...form}>
