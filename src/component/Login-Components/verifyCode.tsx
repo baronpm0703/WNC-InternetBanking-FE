@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -14,9 +13,11 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useAppDispatch } from "@/libs/hooks"
+import { useAppDispatch, useAppSelector } from "@/libs/hooks"
 import { useEffect } from "react"
-import { AuthRoutes, setPath } from "@/libs/slices/sliceAuth"
+import { AuthRoutes, setPath, submitForgotPassword, submitFPWDOTP } from "@/libs/slices/sliceAuth"
+import { toast } from "react-toastify"
+import { useNavigate } from "react-router-dom"
 
 export const OTPSchema = z
     .string()
@@ -31,27 +32,44 @@ const FormSchema = z.object({
 
 export function VerifyCode() {
     const dispatch = useAppDispatch();
+    const { loading, resetPWDEmail, otpVerified } = useAppSelector((state) => state.auth);   
+    const navigate = useNavigate();
     useEffect(() => {
         dispatch(setPath(AuthRoutes.VERIFY_CODE));
     }, []);
+    useEffect(() => {
+        if (otpVerified) {
+            navigate('/auth/resetPassword');
+        } else {
+            console.log("OTP not verified");
+        }
+    }, [loading, otpVerified])
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
         defaultValues: {
             OTP: ""
         },
     })
-    
 
     function onSubmit(data: z.infer<typeof FormSchema>) {
-        toast({
-            title: "You submitted the following values:",
-            description: (
-                <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-                    <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-                </pre>
-            ),
-        })
+        console.log("Verify Code: ",data);
+        if (resetPWDEmail != null) {
+            dispatch(submitFPWDOTP({email: resetPWDEmail,otp: data.OTP}));
+        } else {
+            toast.warning("Please enter your email address first.");
+            navigate('/auth/forgotPassword');
+        }
     }
+
+    function onResend() {
+        if (resetPWDEmail != null) {
+            dispatch(submitForgotPassword(resetPWDEmail));
+        } else {
+            toast.warning("Please enter your email address first.");
+            navigate('/auth/forgotPassword');
+        }
+    }
+
 
     return (
         <>
@@ -75,15 +93,15 @@ export function VerifyCode() {
                         )}
                     />
                     <div className="flex items-center justify-center mb-4">
-                        <a
-                            href="#"
+                        <button
+                            onClick={onResend}
                             className="text-lg text-white hover:text-green-300 group hover:underline"
                         >
                             Didn’t receive a code?{" "}
                             <span className="text-green-300 group-hover:text-white">
                                 Resend
                             </span>
-                        </a>
+                        </button>
                     </div>
                     <Button type="submit" className="w-full text-lg bg-green-400 hover:bg-green-500 text-gray-900 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Login</Button>
                 </form>

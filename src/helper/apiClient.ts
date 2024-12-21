@@ -57,11 +57,13 @@ apiClient.interceptors.response.use(
         originalRequest.headers["Authorization"] = `Bearer ${response.data.accessToken}`;
         return apiClient(originalRequest);
       } catch (err) {
+        console.log("Refresh token failed: ", err);
         // Redirect to login page if refresh fails
         window.location.href = "/"; // Navigate to login page
         return Promise.reject(err);
       }
     }
+    console.log("Error: ", error);
     window.location.href = "/"; // Navigate to login page
     return Promise.reject(error);
   }

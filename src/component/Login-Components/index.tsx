@@ -2,6 +2,7 @@ import { useAppSelector } from "@/libs/hooks";
 import React from "react";
 import { Outlet, Link, Navigate } from "react-router-dom";
 import LoadingSpinner from "../Assists-Components/loadingSpinner";
+import { AuthRoutes } from "@/libs/slices/sliceAuth";
 
 const AuthScreen: React.FC = () => {
     const { path, description, loading, approve } = useAppSelector((state) => state.auth);
@@ -29,7 +30,8 @@ const AuthScreen: React.FC = () => {
                     </button>
                 </div>
             </div>
-            <div className="flex items-center space-x-2 mb-6 absolute pt-32 px-16">
+            {/* Back to login */}
+            { path != AuthRoutes.LOGIN && (<div className="flex items-center space-x-2 mb-6 absolute pt-32 px-16">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     fill="none"
@@ -45,12 +47,13 @@ const AuthScreen: React.FC = () => {
                     />
                 </svg>
                 <Link
-                    to="/login"
+                    to="/"
                     className="text-gray-300 hover:text-green-400 text-sm font-medium transition duration-200"
                 >
                     Back to login
                 </Link>
-            </div>
+            </div>)}
+            
             <div className="flex w-full h-full items-center justify-center bg-[url('/background.png')] bg-cover bg-no-repeat rounded-2xl">
                 <div className="bg-transparent p-8 rounded-lg shadow-lg w-full">
                     <p className="text-center font-black text-6xl text-green-400 mb-4">

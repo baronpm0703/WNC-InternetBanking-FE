@@ -13,6 +13,17 @@ export type AuthToken = {
     refresh_token: string;
 }
 
+export type OTP_PWD_VERIFY = {
+    success: boolean;
+    message: string;
+    token: string;
+}
+
+export type FORGOT_PASSWORD = {
+    email: string;
+    status: boolean;
+}
+
 export interface pathPayload {
     payload: AuthRoutes;
     type: string;
@@ -42,8 +53,13 @@ interface AuthState {
     approve: boolean;
     path: AuthRoutes;
     description: string;
+    resetPWDEmail: string | null;
+    resetPWDToken: string | null;
     isSubmit: boolean;
-    error: string | null; 
+    otpVerified: boolean;
+    changePassword: boolean;
+    error: string | null;
+    fogrotPasswordApprove: boolean;
 }
 
 const initialState: AuthState = {
@@ -51,6 +67,11 @@ const initialState: AuthState = {
     loading: false,
     approve: false,
     isSubmit: false,
+    fogrotPasswordApprove: false,
+    otpVerified: false,
+    resetPWDEmail: null,
+    resetPWDToken: null,
+    changePassword: false,
     path: AuthRoutes.LOGIN,
     description: AuthRouteDescriptions[AuthRoutes.LOGIN],
     error: null,
@@ -69,6 +90,7 @@ export const submitInfo = createAsyncThunk(
             const response = await apiClient.post("accounts/sign-in", body);
 
             // Return token or other response data
+            console.log("Submit Info: ",response.data) 
             return response.data; // Axios automatically parses JSON
         } catch (error: any) {
             // Handle errors and return a rejected value
@@ -89,6 +111,76 @@ export const submitRefreshToken = createAsyncThunk(
 
             const response = await apiClient.get("accounts/hello");
 
+            // Return token or other response data
+            return response.data; // Axios automatically parses JSON
+        } catch (error: any) {
+            // Handle errors and return a rejected value
+            console.log("error: ", error)
+            return rejectWithValue(
+                error.response?.data || "An unexpected error occurred"
+            );
+        }
+    }
+)
+
+export const submitForgotPassword = createAsyncThunk(
+    'auth/forgotPassword',
+    async (email: string, {rejectWithValue}) => {
+        try {
+            // Simulate delay for testing
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            const response = await apiClient.get("accounts/forget-password", { params: { email } });
+            console.log("Status of forgot password: ",response.data)
+            // Return token or other response data
+            return {
+                email: email,
+                status: response.data
+            }; // Axios automatically parses JSON
+        } catch (error: any) {
+            // Handle errors and return a rejected value
+            console.log("error: ", error)
+            return rejectWithValue(
+                error.response?.data || "An unexpected error occurred"
+            );
+        }
+    }
+)
+
+export const submitFPWDOTP = createAsyncThunk(
+    "auth/submitFPWDOTP",
+    async (data: { email: string, otp: string }, {rejectWithValue}) => {
+        try {
+            // Simulate delay for testing
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            const response = await apiClient.post("accounts/verify-password-otp", data);
+
+            // Return token or other response data
+            return response.data; // Axios automatically parses JSON
+        } catch (error: any) {
+            // Handle errors and return a rejected value
+            console.log("error: ", error)
+            return rejectWithValue(
+                error.response?.data || "An unexpected error occurred"
+            );
+        }
+    }
+)
+
+export const changePassword = createAsyncThunk(
+    "auth/changePassword",
+    async (data: { password: string, email: string, token: string }, {rejectWithValue}) => {
+        try {
+            // Simulate delay for testing
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+
+            const response = await apiClient.post("accounts/change-password", data, {
+                headers: {
+                    Authorization: `Bearer ${data.token}`
+                }
+            });
+            console.log("Change Password: ",response.data)
             // Return token or other response data
             return response.data; // Axios automatically parses JSON
         } catch (error: any) {
@@ -150,6 +242,52 @@ export const sliceAuth = createSlice({
                 state.loading = false;
                 state.error = action.payload as string;
                 console.log(action.payload);
+            })
+            .addCase(submitForgotPassword.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(submitForgotPassword.fulfilled, (state, action: slicePayload<FORGOT_PASSWORD>) => {
+                state.loading = false;
+                state.resetPWDEmail = action.payload.email;
+                state.fogrotPasswordApprove = action.payload.status;
+            })
+            .addCase(submitForgotPassword.rejected, (state, action) => {
+                state.loading = false;
+                state.resetPWDEmail = null;
+                state.error = action.payload as string;
+                state.fogrotPasswordApprove = false;
+                console.log("Forgot Password Error: ",action.payload);
+            })
+            .addCase(submitFPWDOTP.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(submitFPWDOTP.fulfilled, (state, action: slicePayload<OTP_PWD_VERIFY>) => {
+                state.loading = false;
+                state.otpVerified = action.payload.success;
+                state.resetPWDToken = action.payload.token;
+                console.log("submitFPWDOTP: ",action.payload);
+            })
+            .addCase(submitFPWDOTP.rejected, (state, action) => {
+                state.loading = false;
+                state.otpVerified = false;
+                state.error = action.payload as string;
+                console.log("submitFPWDOTP error: ",action.payload);
+            })
+            .addCase(changePassword.pending, (state) => {
+                state.loading = true;
+                state.changePassword = false;
+                state.error = null;
+            })
+            .addCase(changePassword.fulfilled, (state) => {
+                state.loading = false;
+                state.changePassword = true;
+            })
+            .addCase(changePassword.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string;
+                console.log("Change password: ",action.payload);
             })
     }
 })

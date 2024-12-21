@@ -1,7 +1,14 @@
+import { useAppDispatch } from "@/libs/hooks";
+import { logout } from "@/libs/slices/sliceAuth";
 import React from "react";
 import { NavLink } from "react-router-dom";
 
 export const DashboardNavBar: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const handleLogOut = () => {
+    console.log("Logout");
+    dispatch(logout());
+  }
   return (
     <aside className="bg-transparent text-white w-2/7 h-full pt-2 pb-6 px-2 flex flex-col justify-between">
       {/* Logo */}
@@ -199,7 +206,7 @@ export const DashboardNavBar: React.FC = () => {
               <p className="text-gray-500 text-sm">@username</p>
             </div>
           </div>
-          <button className="flex items-center justify-start w-full px-4 py-2 bg-gray-800 hover:bg-white mt-2 group rounded-full">
+          <button className="flex items-center justify-start w-full px-4 py-2 bg-gray-800 hover:bg-white mt-2 group rounded-full" onClick={handleLogOut}>
             <img
               src="/svgForWNC/Logout_light.svg"
               alt="logo"

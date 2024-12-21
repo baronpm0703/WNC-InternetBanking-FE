@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -16,8 +15,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { useEffect, useState } from "react"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
-import { useAppDispatch } from "@/libs/hooks"
-import { AuthRoutes, setPath } from "@/libs/slices/sliceAuth"
+import { useAppDispatch, useAppSelector } from "@/libs/hooks"
+import { AuthRoutes, changePassword, setPath } from "@/libs/slices/sliceAuth"
+import { toast } from "react-toastify"
+import { useNavigate } from "react-router-dom"
 
 export const passwordSchema = z
     .string({
@@ -52,7 +53,9 @@ export const FormSchema = z
 export function ResetPassword() {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { resetPWDToken, resetPWDEmail } = useAppSelector((state) => state.auth);
     const dispatch = useAppDispatch();
+    const navigate = useNavigate();
     useEffect(() => {
         dispatch(setPath(AuthRoutes.RESET_PASSWORD));
     }, []);
@@ -65,20 +68,13 @@ export function ResetPassword() {
     })
 
     function onSubmit(data: z.infer<typeof FormSchema>) {
-        toast({
-            title: "Success!",
-            color: "green",
-            description: (
-                <div className="mt-2 w-full max-w-md rounded-lg bg-gradient-to-r from-green-400 to-green-600 p-4 text-white shadow-lg">
-                    <h3 className="text-lg font-semibold">Submission Details</h3>
-                    <pre className="mt-2 w-full rounded-lg bg-gray-800 p-3 overflow-auto">
-                        <code className="text-sm text-gray-200">{JSON.stringify(data, null, 2)}</code>
-                    </pre>
-                </div>
-            ),
-            variant: "default", // Optional if you have variants in `use-toast`
-        })
-        
+        console.log("Reset Password: ", data);
+        if (resetPWDEmail != null && resetPWDToken != null) {
+            dispatch(changePassword({ token: resetPWDToken, email: resetPWDEmail, password: data.password }));
+        } else {
+            toast.warning("Please enter your email address first.");
+            navigate('/auth/forgotPassword');
+        }
     }
 
     return (

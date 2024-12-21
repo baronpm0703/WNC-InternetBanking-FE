@@ -18,9 +18,9 @@ export default function Dashboard() {
           {/* Header */}
           <DashboardHeader />
 
-          <button type="button" onClick={() => {
+          {/* <button type="button" onClick={() => {
             dispatch(submitRefreshToken())
-          }}>Click Me</button>
+          }}>Click Me</button> */}
           {/* Content Outlet */}
           <main className="flex-1 p-6 overflow-auto">
             <Outlet />

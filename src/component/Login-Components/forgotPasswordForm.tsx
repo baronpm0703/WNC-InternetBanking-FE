@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
 
-import { toast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -14,9 +13,10 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { useAppDispatch } from "@/libs/hooks"
+import { useAppDispatch, useAppSelector } from "@/libs/hooks"
 import { useEffect } from "react"
-import { AuthRoutes, setPath } from "@/libs/slices/sliceAuth"
+import { AuthRoutes, setPath, submitForgotPassword } from "@/libs/slices/sliceAuth"
+import { useNavigate } from "react-router-dom"
 
 const FormSchema = z.object({
     email: z.string().email({
@@ -26,6 +26,8 @@ const FormSchema = z.object({
 
 export function ForgotPasswordForm() {
     const dispatch = useAppDispatch();
+    const { fogrotPasswordApprove, loading } = useAppSelector((state) => state.auth);
+    const navigate = useNavigate();
     useEffect(() => {
         dispatch(setPath(AuthRoutes.FORGOT_PASSWORD));
     }, []);
@@ -37,16 +39,16 @@ export function ForgotPasswordForm() {
     })
 
     function onSubmit(data: z.infer<typeof FormSchema>) {
-        toast({
-            title: "You submitted the following values:",
-            description: (
-                <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-                    <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-                </pre>
-            ),
-        })
+        console.log("Forgot Pass: ",data);
+        dispatch(submitForgotPassword(data.email));
     }
 
+    useEffect(() => {
+        if (fogrotPasswordApprove) {
+            console.log("Forgot Password Approved");
+            navigate('/auth/verifyCode');
+        }
+    }, [loading, fogrotPasswordApprove]);
     return (
         <>
             <Form {...form}>
@@ -69,7 +71,7 @@ export function ForgotPasswordForm() {
                         )}
                     />
 
-                    <Button type="submit" className="w-full text-lg bg-green-400 hover:bg-green-500 text-gray-900 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Login</Button>
+                    <Button type="submit" className="mt-4 w-full text-lg bg-green-400 hover:bg-green-500 text-gray-900 font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Login</Button>
                 </form>
             </Form>
             <div className="flex items-center w-full max-w-md my-6">
