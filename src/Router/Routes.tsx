@@ -1,6 +1,7 @@
 import App from "@/App";
 import Dashboard from "@/component/Dashboard-Components";
 import DashboardUI from "@/component/Dashboard-Components/dashboard";
+import DebtReminderUI from "@/component/Dashboard-Components/debtReminders";
 import TransferUI from "@/component/Dashboard-Components/transferMoney";
 import AuthScreen from "@/component/Login-Components";
 import { ForgotPasswordForm } from "@/component/Login-Components/forgotPasswordForm";
@@ -38,7 +39,7 @@ export const router = createBrowserRouter([
           { path: "transfer-money", element: <TransferUI /> },
           { path: "manage-beneficiaries", element: <TransferUI /> },
           { path: "transaction-history", element: <TransferUI /> },
-          { path: "debt-reminders", element: <TransferUI /> },
+          { path: "debt-reminders", element: <DebtReminderUI /> },
           { path: "settings", element: <TransferUI /> },
           { path: "help-center", element: <TransferUI /> },
           { path: "profile", element: <TransferUI /> },

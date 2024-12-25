@@ -1,12 +1,14 @@
 import { useAppSelector } from "@/libs/hooks";
-import React from "react";
+import React, { useEffect, useLayoutEffect } from "react";
 import { Outlet, Link, Navigate } from "react-router-dom";
 import LoadingSpinner from "../Assists-Components/loadingSpinner";
 import { AuthRoutes } from "@/libs/slices/sliceAuth";
+import { toast } from "react-toastify";
 
 const AuthScreen: React.FC = () => {
     const { path, description, loading, approve } = useAppSelector((state) => state.auth);
-
+    const { error} = useAppSelector((state) => state.auth);
+    useLayoutEffect(() => { if (error) toast.error(error) }, [error])
     return (
         <div className="w-screen h-screen py-10 px-4 sm:px-10 relative">
             <div className="flex flex-row w-full justify-between bg-transparent text-white absolute py-10 ps-16 pe-32">

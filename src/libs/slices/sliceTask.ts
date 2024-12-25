@@ -13,12 +13,14 @@ export const fakeDb = [
 
 interface TaskState {
     allTask: Task[];
+    isOpenDialog: boolean;
     currentTaskList: Task[];
     isShowAddTask: boolean;
     loading: boolean;
 }
 const initialState: TaskState = {
     allTask: [],
+    isOpenDialog: false,
     currentTaskList: [],
     isShowAddTask: false,
     loading: false,
@@ -131,7 +133,14 @@ export const sliceTask = createSlice({
             );
             state.currentTaskList = filteredData;
             console.log("Filter task", filteredData);
-        } 
+        },
+        openDialog: (state) => {
+            state.isOpenDialog = !state.isOpenDialog;
+        },
+        interactDialog: (state, action) => {
+            console.log("Interact dialog", action.payload);
+            state.isOpenDialog = action.payload;
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -179,5 +188,5 @@ export const sliceTask = createSlice({
     }
 })
 
-export const { showAll, addTask, updateOneTask, filterTasks } = sliceTask.actions;
+export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog } = sliceTask.actions;
 export const taskReducer = sliceTask.reducer;

@@ -23,7 +23,8 @@ export default function Dashboard() {
           }}>Click Me</button> */}
           {/* Content Outlet */}
           <main className="flex-1 p-6 overflow-auto">
-            <Outlet />
+          <Outlet />
+            
           </main>
         </div>
       </div>

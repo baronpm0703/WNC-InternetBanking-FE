@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCircleXmark, faAngleRight, faSearch } from '@fortawesome/free-solid-svg-icons';
 
@@ -36,9 +36,10 @@ const ItemDropdown: React.FC<ItemDropdownProps> = ({
         e.stopPropagation(); // Prevent the click event from bubbling up
     };
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            if (dropdownRef.current && event.target && !dropdownRef.current.contains(event.target as Node) && !(event.target as Element).closest('.dropdown-toggle')) {
+                console.log('Clicked outside');
                 setIsDropdownOpen(false);
             }
         };
