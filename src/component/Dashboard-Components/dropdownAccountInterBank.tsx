@@ -83,12 +83,12 @@ const ItemDropdownAccountInterBank: React.FC<ItemDropdownAccountInterBankProps> 
             {filteredItems.length > 0 ? (
                 filteredItems.map((item) => (
                     <div
-                        key={item.attribute1}
-                        className="items-center pl-2 pr-2 pt-1 pb-1"
-                        onClick={() => {
-                            setSelectedItem(item);
-                            setIsDropdownOpen(false);
-                        }}
+                    key={item.attribute1}
+                    className="items-center pl-2 pr-2 pt-1 pb-1"
+                    onClick={() => {
+                        setSelectedItem(item);
+                        setIsDropdownOpen(false);
+                    }}
                     >
                         <div className="flex items-center hover:bg-[#ecf4e3] cursor-pointer rounded-2xl transition-all duration-300 ease-in-out p-2">
                             <img
