@@ -1,14 +1,27 @@
-import { useAppSelector } from "@/libs/hooks";
+import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import React, { useEffect, useLayoutEffect } from "react";
-import { Outlet, Link, Navigate } from "react-router-dom";
+import { Outlet, Link, Navigate, useNavigate } from "react-router-dom";
 import LoadingSpinner from "../Assists-Components/loadingSpinner";
-import { AuthRoutes } from "@/libs/slices/sliceAuth";
+import { AuthRoutes, newToken, submitRefreshToken } from "@/libs/slices/sliceAuth";
 import { toast } from "react-toastify";
 
 const AuthScreen: React.FC = () => {
     const { path, description, loading, approve } = useAppSelector((state) => state.auth);
-    const { error} = useAppSelector((state) => state.auth);
+    const { error, token } = useAppSelector((state) => state.auth);
+    const dispatch = useAppDispatch();
     useLayoutEffect(() => { if (error) toast.error(error) }, [error])
+    useEffect(() => {
+        if (token && !approve) {
+            console.log("Call check token: ", token);
+            dispatch(submitRefreshToken());
+        }
+    }, [token]);
+    useEffect(() => {
+        const localToken = localStorage.getItem("token");
+        if (localToken) {
+            dispatch(newToken(JSON.parse(localToken)))
+        }
+    }, []);
     return (
         <div className="w-screen h-screen py-10 px-4 sm:px-10 relative">
             <div className="flex flex-row w-full justify-between bg-transparent text-white absolute py-10 ps-16 pe-32">

@@ -109,7 +109,7 @@ export const submitRefreshToken = createAsyncThunk(
             // Simulate delay for testing
             await new Promise((resolve) => setTimeout(resolve, 1000));
 
-            const response = await apiClient.get("accounts/hello");
+            let response =  await apiClient.get("accounts/hello");
 
             // Return token or other response data
             return response.data; // Axios automatically parses JSON
@@ -201,6 +201,7 @@ export const sliceAuth = createSlice({
             state.token = null;
             state.error = null;
             state.loading = false;
+            localStorage.removeItem("token");
             window.location.href = "/";
         },
         setPath: (state, action: pathPayload) => {
