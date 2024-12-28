@@ -195,17 +195,28 @@ export const DashboardNavBar: React.FC = () => {
         </ul>
         {/* User Info */}
         <div className="mt-auto flex flex-col items-center space-y-2">
-          <div className="flex items-center">
-            <img
-              src="/UserAvatar.png"
-              alt="User Avatar"
-              className="w-10 h-10 rounded-full mr-2"
-            />
-            <div>
-              <p className="font-bold">Ali Riaz</p>
-              <p className="text-gray-500 text-sm">@username</p>
-            </div>
-          </div>
+        <NavLink
+            to="profile"
+            className={({ isActive }) =>
+              `flex items-center w-full px-4 py-2 rounded-lg ${
+                isActive ? "bg-white text-black" : "hover:bg-gray-800"
+              }`
+            }
+          >
+            {({ isActive }) => (
+              <>
+                <img
+                  src="/UserAvatar.png"
+                  alt="User Avatar"
+                  className="w-10 h-10 rounded-full mr-2"
+                />
+                <div>
+                  <p className={isActive ? "font-bold text-black" : "font-bold text-white"}>Ali Riaz</p>
+                  <p className={isActive ? "text-sm text-black" : "text-sm text-gray-500"}>@username</p>
+                </div>
+              </>
+            )}
+          </NavLink>
           <button className="flex items-center justify-start w-full px-4 py-2 bg-gray-800 hover:bg-white mt-2 group rounded-full" onClick={handleLogOut}>
             <img
               src="/svgForWNC/Logout_light.svg"

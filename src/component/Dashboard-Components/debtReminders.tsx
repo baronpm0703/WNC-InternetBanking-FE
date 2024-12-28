@@ -18,8 +18,6 @@ import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowLeft } from "@fortawesome/free-solid-svg-icons";
 
 const TransferSchema = z.object({
   transferTo: z.string().nonempty({ message: "Please select a beneficiary account." }),
@@ -36,8 +34,6 @@ const DebtReminderUI = () => {
   const dispatch = useAppDispatch();
   const { isOpenDialog } = useAppSelector(state => state.task);
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
-  const [activeStep, setActiveStep] = useState("transfer"); // New state for tracking steps
-  const [formData, setFormData] = useState(null); // Dữ liệu từ form đầu tiên
   const [searchQuery, setSearchQuery] = useState("");
 
   const accounts = [
@@ -59,12 +55,6 @@ const DebtReminderUI = () => {
 
   function onSubmitSameBank(data: any) {
     console.log("Form Submitted:", data);
-    setFormData(data);
-    setActiveStep("otp");
-  }
-
-  function onSubmitSameBankOTP(data: any) {
-    console.log("Form Submitted otp same bamk", data);
   }
 
   const handleTransferToInputChange = (event) => {
@@ -105,211 +95,153 @@ const DebtReminderUI = () => {
         </div>
         <div className="bg-black p-6 rounded-3xl border border-white/20 shadow-lg overflow-y-auto pr-4" style={{ boxShadow: "0px 4px 0px white" }}>
           {
-            (activeStep === "transfer" ? (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmitSameBank)} className={`space-y-6 transition-all duration-1000 transform ${activeTab === "createReminder"
-                  ? "opacity-100 translate-y-0 max-h-screen"
-                  : "opacity-0 translate-y-[20px] max-h-0 overflow-hidden"
-                  }`}>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmitSameBank)} className={`space-y-6 transition-all duration-1000 transform ${activeTab === "createReminder"
+                ? "opacity-100 translate-y-0 max-h-screen"
+                : "opacity-0 translate-y-[20px] max-h-0 overflow-hidden"
+                }`}>
+                <FormField
+                  control={form.control}
+                  name="transferTo"
+                  render={({ field, fieldState }) => (
+                    <FormItem>
+                      <label className="block text-white text-sm mb-2">Remind To</label>
+                      <FormControl>
+                        <div className="flex justify-between items-center space-x-3">
+                          {/* Input Field */}
+                          <input
+                            type="text"
+                            placeholder="Enter account number"
+                            value={selectedTransferTo.attribute2}
+                            className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
+                              } focus:outline-none`}
+                            onChange={handleTransferToInputChange}
+                          />
+
+                          {/* Dropdown Menu */}
+                          <div className="w-1/2 relative">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <button
+                                  type="button"
+                                  className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
+                                    } focus:outline-none hover:border-white transition-all duration-200`}
+                                >
+                                  {selectedTransferTo.attribute1
+                                    ? `${selectedTransferTo.attribute1} - ${selectedTransferTo.attribute2}`
+                                    : "Select Beneficiary Account"}
+                                </button>
+                              </DropdownMenuTrigger>
+
+                              <DropdownMenuContent className="w-full">
+                                <DropdownMenuLabel>Select an Account</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <div className="px-2 py-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Search accounts..."
+                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none rounded-xl focus:ring focus:ring-blue-500 text-white"
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                  />
+                                </div>
+                                <DropdownMenuSeparator />
+                                {accounts
+                                  .filter((account) =>
+                                    `${account.attribute1} - ${account.attribute2}`
+                                      .toLowerCase()
+                                      .includes(searchQuery.toLowerCase())
+                                  )
+                                  .map((account) => (
+                                    <DropdownMenuItem
+                                      key={account.attribute2}
+                                      onClick={() => {
+                                        setSelectedTransferTo(account);
+                                        field.onChange(`${account.attribute1} - ${account.attribute2}`);
+                                      }}
+                                      className="flex items-center justify-between px-4 py-2 space-x-4"
+                                    >
+                                      {/* Avatar */}
+                                      <div className="flex items-center space-x-4">
+                                        <img
+                                          src="https://via.placeholder.com/40" // Thay bằng URL avatar thực tế
+                                          alt={account.attribute1}
+                                          className="w-10 h-10 rounded-full"
+                                        />
+                                        {/* Tên và số tài khoản */}
+                                        <div>
+                                          <p className="text-sm font-medium text-black">{account.attribute1}</p>
+                                          <p className="text-xs font-bold text-gray-400">{account.attribute2}</p>
+                                        </div>
+                                      </div>
+                                      {/* Mũi tên */}
+                                      <span className="text-gray-400 text-sx">{'>'}</span>
+                                    </DropdownMenuItem>
+
+                                  ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                      </FormControl>
+
+                      {fieldState.error && (
+                        <FormMessage className="text-red-500 text-sm">
+                          {fieldState.error.message}
+                        </FormMessage>
+                      )}
+                    </FormItem>
+                  )}
+                />
+                <div className="flex space-x-4">
+                  {/* Amount */}
                   <FormField
                     control={form.control}
-                    name="transferTo"
-                    render={({ field, fieldState }) => (
-                      <FormItem>
-                        <label className="block text-white text-sm mb-2">Remind To</label>
+                    name="amount"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <label className="block text-gray-400 text-sm mb-1">Amount</label>
                         <FormControl>
-                          <div className="flex justify-between items-center space-x-3">
-                            {/* Input Field */}
-                            <input
-                              type="text"
-                              placeholder="Enter account number"
-                              value={selectedTransferTo.attribute2}
-                              className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                                } focus:outline-none`}
-                              onChange={handleTransferToInputChange}
-                            />
-
-                            {/* Dropdown Menu */}
-                            <div className="w-1/2 relative">
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button
-                                    type="button"
-                                    className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                                      } focus:outline-none hover:border-white transition-all duration-200`}
-                                  >
-                                    {selectedTransferTo.attribute1
-                                      ? `${selectedTransferTo.attribute1} - ${selectedTransferTo.attribute2}`
-                                      : "Select Beneficiary Account"}
-                                  </button>
-                                </DropdownMenuTrigger>
-
-                                <DropdownMenuContent className="w-full">
-                                  <DropdownMenuLabel>Select an Account</DropdownMenuLabel>
-                                  <DropdownMenuSeparator />
-                                  <div className="px-2 py-2">
-                                    <input
-                                      type="text"
-                                      placeholder="Search accounts..."
-                                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none rounded-xl focus:ring focus:ring-blue-500 text-white"
-                                      value={searchQuery}
-                                      onChange={(e) => setSearchQuery(e.target.value)}
-                                    />
-                                  </div>
-                                  <DropdownMenuSeparator />
-                                  {accounts
-                                    .filter((account) =>
-                                      `${account.attribute1} - ${account.attribute2}`
-                                        .toLowerCase()
-                                        .includes(searchQuery.toLowerCase())
-                                    )
-                                    .map((account) => (
-                                      <DropdownMenuItem
-                                        key={account.attribute2}
-                                        onClick={() => {
-                                          setSelectedTransferTo(account);
-                                          field.onChange(`${account.attribute1} - ${account.attribute2}`);
-                                        }}
-                                        className="flex items-center justify-between px-4 py-2 space-x-4"
-                                      >
-                                        {/* Avatar */}
-                                        <div className="flex items-center space-x-4">
-                                          <img
-                                            src="https://via.placeholder.com/40" // Thay bằng URL avatar thực tế
-                                            alt={account.attribute1}
-                                            className="w-10 h-10 rounded-full"
-                                          />
-                                          {/* Tên và số tài khoản */}
-                                          <div>
-                                            <p className="text-sm font-medium text-black">{account.attribute1}</p>
-                                            <p className="text-xs font-bold text-gray-400">{account.attribute2}</p>
-                                          </div>
-                                        </div>
-                                        {/* Mũi tên */}
-                                        <span className="text-gray-400 text-sx">{'>'}</span>
-                                      </DropdownMenuItem>
-
-                                    ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </div>
-                          </div>
+                          <Input
+                            type="text"
+                            placeholder="100.000"
+                            {...field}
+                            className="w-full py-6 px-4 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none"
+                          />
                         </FormControl>
-
-                        {fieldState.error && (
-                          <FormMessage className="text-red-500 text-sm">
-                            {fieldState.error.message}
-                          </FormMessage>
-                        )}
+                        <FormMessage className="text-red-500 text-sm" />
                       </FormItem>
                     )}
                   />
-                  <div className="flex space-x-4">
-                    {/* Amount */}
-                    <FormField
-                      control={form.control}
-                      name="amount"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <label className="block text-gray-400 text-sm mb-1">Amount</label>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="100.000"
-                              {...field}
-                              className="w-full py-6 px-4 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none"
-                            />
-                          </FormControl>
-                          <FormMessage className="text-red-500 text-sm" />
-                        </FormItem>
-                      )}
-                    />
 
-                    {/* Purpose */}
-                    <FormField
-                      control={form.control}
-                      name="purpose"
-                      render={({ field }) => (
-                        <FormItem className="flex-1">
-                          <label className="block text-gray-400 text-sm mb-1">Purpose</label>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Purpose"
-                              {...field}
-                              className="w-full py-6 px-4 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none"
-                            />
-                          </FormControl>
-                          <FormMessage className="text-red-500 text-sm" />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <Button
-                    type="submit"
-                    className="w-full py-3 bg-[#B9FF66] text-black font-bold rounded-full"
-                  >
-                    Transfer
-                  </Button>
-                </form>
-              </Form>
-            ) : (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmitSameBankOTP)} className="w-full space-y-6">
-                  <div className="mt-6">
-                    <button
-                      onClick={() => setActiveStep("transfer")}
-                      className="flex items-center justify-center w-10 h-10 rounded-full bg-white text-black shadow-lg border border-gray-300"
-                    >
-                      <FontAwesomeIcon icon={faArrowLeft} size="lg" />
-                    </button>
-                    <h3 className="text-white text-lg text-center font-bold mb-4">Confirm Debt Remind Transaction</h3>
-
-                    <div className="mb-4 flex justify-between">
-                      <p className="text-gray-400">Transfer To:</p>
-                      <p className="text-white font-bold">{formData?.transferTo}</p>
-                    </div>
-
-                    <div className="mb-4 flex justify-between">
-                      <p className="text-gray-400">Amount:</p>
-                      <p className="text-white font-bold">{formData?.amount} VND</p>
-                    </div>
-
-                    <div className="mb-4 flex justify-between">
-                      <p className="text-gray-400">Purpose:</p>
-                      <p className="text-white font-bold">{formData?.purpose}</p>
-                    </div>
-
-                    {/* Nhập OTP */}
-                    <FormField
-                      control={form.control}
-                      name="otp"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Enter OTP"
-                              {...field}
-                              className="w-full py-5 px-6 bg-white text-black text-lg rounded-xl border border-gray-800 focus:outline-none"
-                            />
-                          </FormControl>
-                          <FormMessage className="text-red-500 text-sm" />
-                        </FormItem>
-                      )}
-                    />
-
-                    <Button
-                      type="submit"
-                      className="mt-4 w-full py-3 bg-blue-500 text-white font-bold rounded-full"
-                    >
-                      Verify
-                    </Button>
-                  </div>
-
-                </form>
-              </Form>
-            ))
+                  {/* Purpose */}
+                  <FormField
+                    control={form.control}
+                    name="purpose"
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <label className="block text-gray-400 text-sm mb-1">Purpose</label>
+                        <FormControl>
+                          <Input
+                            type="text"
+                            placeholder="Purpose"
+                            {...field}
+                            className="w-full py-6 px-4 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none"
+                          />
+                        </FormControl>
+                        <FormMessage className="text-red-500 text-sm" />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full py-3 bg-[#B9FF66] text-black font-bold rounded-full"
+                >
+                  Transfer
+                </Button>
+              </form>
+            </Form>
           }
 
           <div className={`w-full flex justify-center mt-3 transition-all duration-700 transform ${activeTab != "createReminder"

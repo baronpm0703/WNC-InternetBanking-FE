@@ -3,6 +3,7 @@ import Dashboard from "@/component/Dashboard-Components";
 import DashboardUI from "@/component/Dashboard-Components/dashboard";
 import DebtReminderUI from "@/component/Dashboard-Components/debtReminders";
 import ManageBeneficiaryUI from "@/component/Dashboard-Components/manageBeneficiary";
+import ProfileUI from "@/component/Dashboard-Components/profile";
 import TransferUI from "@/component/Dashboard-Components/transferMoney";
 import AuthScreen from "@/component/Login-Components";
 import { ForgotPasswordForm } from "@/component/Login-Components/forgotPasswordForm";
@@ -43,7 +44,7 @@ export const router = createBrowserRouter([
           { path: "debt-reminders", element: <DebtReminderUI /> },
           { path: "settings", element: <TransferUI /> },
           { path: "help-center", element: <TransferUI /> },
-          { path: "profile", element: <TransferUI /> },
+          { path: "profile", element: <ProfileUI /> },
           { path: "logout", element: <Navigate to="/auth" replace /> },
         ],
       },
