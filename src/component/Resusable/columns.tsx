@@ -30,6 +30,13 @@ export type Debt = {
   status: "Pending" | "Paid" | "Decline"
 }
 
+export type Beneficiary = {
+  id: string,
+  identity: Identity,
+  bank: string,
+  memorableName: string,
+}
+
 export const payments: Payment[] = [
   {
     id: "728ed52f",
@@ -266,6 +273,117 @@ export const debtColumns: ColumnDef<Debt>[] = [
             <DropdownMenuItem onClick={handleRepay}>Repay Debt</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleCancel} onSelect={(e) => e.preventDefault()}>Cancel</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+      )
+    }
+  }
+]
+
+export const inBeneficiaries: Beneficiary[] = [
+  {
+    id: "728ed52f",
+    identity: {
+      name: "Nguyen Van A",
+      phone: "0123456789",
+      avt: "https://randomuser.me/api/portraits/med/men/75.jpg"
+    },
+    bank: "BC BANK",
+    memorableName: "ANHA"
+  },
+  {
+    id: "489e1d42",
+    identity: {
+      name: "Nguyen Van B",
+      phone: "0123456789",
+      avt: "https://randomuser.me/api/portraits/med/men/76.jpg"
+    },
+    bank: "AB BANK",
+    memorableName: "ANH B"
+  },
+  {
+    id: "7d8e1d42",
+    identity: {
+      name: "Nguyen Van C",
+      phone: "0123456789",
+      avt: "https://randomuser.me/api/portraits/med/men/74.jpg"
+    },
+    bank: "TP BANK",
+    memorableName: "ANH C"
+  }
+]
+
+export const beneficiaryColumns: ColumnDef<Beneficiary>[] = [
+  {
+    accessorKey: "select",
+    header: ({ table }) => (
+      <Checkbox
+        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(checked) => table.toggleAllPageRowsSelected(!!checked)}
+        aria-label="Select all rows"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
+        checked={row.getIsSelected()}
+        onCheckedChange={(checked) => row.toggleSelected(!!checked)}
+        aria-label="Select this row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false
+  },
+  {
+    accessorKey: "identity",
+    header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
+    cell: ({ row }) => {
+      const identity = row.original.identity;
+      return (
+        <div className="flex items-center">
+          <img src={identity.avt} alt="avatar" className="w-8 h-8 rounded-full" />
+          <div className="ml-2">
+            <p className="text-left font-medium">{identity.name}</p>
+            <p className="text-left text-[#A0AEC0]">{identity.phone}</p>
+          </div>
+        </div>
+      )
+    }
+  },
+  {
+    accessorKey: "bank",
+    header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
+  },
+  {
+    accessorKey: "memorableName",
+    header: () => <p className="text-left text-[#E0FFBC]">Memorable Name</p>,
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const dispatch = useAppDispatch();
+      const beneficiary = row.original; // Access Data's row
+      const handleEdit = () => {
+        console.log("Edit beneficiary", beneficiary.id);
+      }
+      const handleRemove = () => {
+        console.log("Remove beneficiary", beneficiary.id);
+        dispatch(openDialog());
+      }
+      return (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
+            <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleRemove} onSelect={(e) => e.preventDefault()}>Remove</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
