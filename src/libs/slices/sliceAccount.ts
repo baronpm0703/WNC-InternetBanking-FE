@@ -7,14 +7,20 @@ export type AccountInfo = {
   account_balance: number
   account_number: string
   created_at?: string
-  role: string
+  role: string  
 }
+
+export type TransactionTarget = {
+  account_number: string;
+  name: string;
+};
 
 export type Account = {
   accountInfo: AccountInfo
   customerAccount?: AccountInfo[]
   employeeAccount?: AccountInfo[]
   error: string | null
+  selectedTargetData?: TransactionTarget | null;
 }
 
 const initialState: Account = {
@@ -57,6 +63,31 @@ export const fetchCustomerAccount = createAsyncThunk(
     }
   }
 )
+
+export const fetchTransactionTarget = createAsyncThunk(
+  "account/fetchTransactionTarget",
+  async (accountNumber: string, { rejectWithValue }) => {
+    try {
+      if (!accountNumber || accountNumber.trim() === "") {
+        throw new Error("Account number is required.");
+      }
+      const response = await apiClient.get(`/accounts/transaction-target`, {
+        params: { account_number: accountNumber },
+      });
+
+      if (!response.data || !response.data.target_data) {
+        throw new Error("Invalid response from server.");
+      }
+      return response.data.target_data;
+    } catch (error: any) {
+      console.error("Transaction target fetch error: ", error);
+      return rejectWithValue(
+        error.response?.data?.message || "An unexpected error occurred"
+      );
+    }
+  }
+);
+
 export const sliceAccount = createSlice({
   initialState,
   name: "account",
@@ -89,6 +120,15 @@ export const sliceAccount = createSlice({
           }
         })
         state.error = ""
+      })
+      .addCase(fetchTransactionTarget.fulfilled, (state, action) => {
+        console.log("API Data Fetched Successfully:", action.payload); // Debug dữ liệu trả về
+        state.selectedTargetData = action.payload;
+        state.error = "";
+      })
+      .addCase(fetchTransactionTarget.rejected, (state, action) => {
+        state.error = action.payload as string;
+        console.error("Transaction target error: ", action.payload);
       })
   },
 })
