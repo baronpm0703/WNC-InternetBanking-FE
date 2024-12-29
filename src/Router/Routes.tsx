@@ -1,9 +1,13 @@
 import App from "@/App";
 import Dashboard from "@/component/Dashboard-Components";
+import CustomerAccountUI from "@/component/Dashboard-Components/customerAccount";
+import CustomerTransactionUI from "@/component/Dashboard-Components/customerTransactions";
 import DashboardUI from "@/component/Dashboard-Components/dashboard";
 import DebtReminderUI from "@/component/Dashboard-Components/debtReminders";
+import DepositUI from "@/component/Dashboard-Components/deposit";
 import ManageBeneficiaryUI from "@/component/Dashboard-Components/manageBeneficiary";
 import ProfileUI from "@/component/Dashboard-Components/profile";
+import TransactionUI from "@/component/Dashboard-Components/transactions";
 import TransferUI from "@/component/Dashboard-Components/transferMoney";
 import AuthScreen from "@/component/Login-Components";
 import { ForgotPasswordForm } from "@/component/Login-Components/forgotPasswordForm";
@@ -34,18 +38,25 @@ export const router = createBrowserRouter([
         ],
       },
       {
+        path: "Employee",
+        element: <Navigate to="/dashboard/customer-account" replace />,
+      },
+      {
         path: "dashboard",
         element: <Dashboard />,
         children: [
           { path: "", element: <DashboardUI/> },
           { path: "transfer-money", element: <TransferUI /> },
           { path: "manage-beneficiaries", element: <ManageBeneficiaryUI /> },
-          { path: "transaction-history", element: <TransferUI /> },
+          { path: "transaction-history", element: <TransactionUI /> },
           { path: "debt-reminders", element: <DebtReminderUI /> },
           { path: "settings", element: <TransferUI /> },
           { path: "help-center", element: <TransferUI /> },
           { path: "profile", element: <ProfileUI /> },
           { path: "logout", element: <Navigate to="/auth" replace /> },
+          { path: "customer-account", element: <CustomerAccountUI /> },
+          { path: "deposit-money", element: <DepositUI /> },
+          { path: "customer-transactions-history", element: <CustomerTransactionUI /> },
         ],
       },
     ],

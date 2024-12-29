@@ -11,12 +11,14 @@ const AuthScreen: React.FC = () => {
     const dispatch = useAppDispatch();
     useLayoutEffect(() => { if (error) toast.error(error) }, [error])
     useEffect(() => {
+        console.log("Token: ", token);
         if (token && !approve) {
             console.log("Call check token: ", token);
             dispatch(submitRefreshToken());
         }
     }, [token]);
     useEffect(() => {
+        console.log("Local token: ", localStorage.getItem("token"));
         const localToken = localStorage.getItem("token");
         if (localToken) {
             dispatch(newToken(JSON.parse(localToken)))

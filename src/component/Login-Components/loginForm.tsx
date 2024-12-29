@@ -25,7 +25,7 @@ const FormSchema = z.object({
     email: z.string().email({
         message: "Please enter a valid email address.",
     }),
-    password: z.string().min(8, {
+    password: z.string().min(3, {
         message: "Password must be at least 3 characters long.",
     }),
 });
@@ -66,21 +66,6 @@ export function LoginForm() {
         }
     }
 
-    // useEffect(() => {
-    //     let token: AuthToken | null = null;
-    //     if (localStorage.getItem("token")) {
-    //         token = JSON.parse(localStorage.getItem("token") as string) as AuthToken;
-    //     }
-    //     if (token) {
-    //         let UAT_info: JWTPAYLOAD = JSON.parse(atob(token.access_token.split(".")[1]));
-    //         console.log(UAT_info)
-    //         if (UAT_info.exp >= Date.now()) {
-    //             redirect('/dashboard');
-    //         } else {
-    //             console.log("UAT expired")
-    //         }
-    //     }
-    // }, [])
     return (
         <>
             <Form {...form}>

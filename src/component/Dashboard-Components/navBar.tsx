@@ -1,10 +1,11 @@
-import { useAppDispatch } from "@/libs/hooks";
+import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { logout } from "@/libs/slices/sliceAuth";
 import React from "react";
 import { NavLink } from "react-router-dom";
 
 export const DashboardNavBar: React.FC = () => {
   const dispatch = useAppDispatch();
+  const { accountInfo } = useAppSelector(state => state.account);
   const handleLogOut = () => {
     console.log("Logout");
     dispatch(logout());
@@ -18,181 +19,312 @@ export const DashboardNavBar: React.FC = () => {
       </div>
 
       {/* Navigation Links */}
-      <nav 
+      <nav
         className="flex flex-col bg-black rounded-3xl p-4 h-full"
-        style={{boxShadow: "0px 4px 0px white"}}
-        >
-        <ul className="space-y-4">
-          <li>
-            <NavLink
-              to="/dashboard"
-              end
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/Home_dark.svg" // Active state image
-                        : "/svgForWNC/Home_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-7 me-3"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Dashboard</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="transfer-money"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/Money_dark.svg" // Active state image
-                        : "/svgForWNC/Money_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-7 me-3"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Transfer Money</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="manage-beneficiaries"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/User_dark.svg" // Active state image
-                        : "/svgForWNC/User_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-7 me-3"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Manage Beneficiaries</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="debt-reminders"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/Credit_dark.svg" // Active state image
-                        : "/svgForWNC/Credit_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-7 me-3"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Debt Reminders</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="transaction-history"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/Status_dark.svg" // Active state image
-                        : "/svgForWNC/Status_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-7 me-3"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Transaction History</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="settings"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/Setting_dark.svg" // Active state image
-                        : "/svgForWNC/Setting_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-7 me-3"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-          <li>
-            <NavLink
-              to="help-center"
-              className={({ isActive }) =>
-                `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  <img
-                    src={
-                      isActive
-                        ? "/svgForWNC/Help_dark.svg" // Active state image
-                        : "/svgForWNC/Help_light.svg"  // Inactive state image
-                    }
-                    alt="logo"
-                    className="w-7 h-8 me-3 object-contain"
-                  />
-                  <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-        </ul>
+        style={{ boxShadow: "0px 4px 0px white" }}
+      >
+        {accountInfo.role === "Customer" ? (
+          <>
+            <ul className="space-y-4">
+              <li>
+                <NavLink
+                  to="/dashboard"
+                  end
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Home_dark.svg" // Active state image
+                            : "/svgForWNC/Home_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Dashboard</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="transfer-money"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Money_dark.svg" // Active state image
+                            : "/svgForWNC/Money_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Transfer Money</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="manage-beneficiaries"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/User_dark.svg" // Active state image
+                            : "/svgForWNC/User_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Manage Beneficiaries</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="debt-reminders"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Credit_dark.svg" // Active state image
+                            : "/svgForWNC/Credit_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Debt Reminders</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="transaction-history"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Status_dark.svg" // Active state image
+                            : "/svgForWNC/Status_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Transaction History</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="settings"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Setting_dark.svg" // Active state image
+                            : "/svgForWNC/Setting_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="help-center"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Help_dark.svg" // Active state image
+                            : "/svgForWNC/Help_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-8 me-3 object-contain"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            </ul>
+          </>
+        ) : (
+          <>
+            <ul className="space-y-4">
+              <li>
+                <NavLink
+                  to="customer-account"
+                  end
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Home_dark.svg" // Active state image
+                            : "/svgForWNC/Home_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Customer Account</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="deposit-money"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Money_dark.svg" // Active state image
+                            : "/svgForWNC/Money_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Deposit Money</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="customer-transactions-history"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/User_dark.svg" // Active state image
+                            : "/svgForWNC/User_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Transaction History</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="settings"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Setting_dark.svg" // Active state image
+                            : "/svgForWNC/Setting_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="help-center"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Help_dark.svg" // Active state image
+                            : "/svgForWNC/Help_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-8 me-3 object-contain"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            </ul>
+          </>
+        )}
+
         {/* User Info */}
         <div className="mt-auto flex flex-col items-center space-y-2">
         <NavLink
