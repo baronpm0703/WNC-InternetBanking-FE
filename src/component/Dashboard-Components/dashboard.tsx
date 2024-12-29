@@ -13,11 +13,14 @@ const DashboardUI = () => {
       navigate(`/${accountInfo.role}`);
     }
   }, [accountInfo.role]);
+
+  const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
+
   return (
     <div className="text-white font-sans flex">
       <div className="flex-1 overflow-y-auto pr-4">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold">Welcome Back, Ali 👋</h1>
+          <h1 className="text-2xl font-bold">Welcome Back, {accountInfo.name} 👋</h1>
           <p className="text-gray-400">Here's what's happening with your store today.</p>
         </div>
         <div className="flex justify-between gap-8">
@@ -281,36 +284,24 @@ const DashboardUI = () => {
         </div>
         <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)]">
           <h3 className="text-xl font-bold mb-4">Favorite Beneficiaries</h3>
-          <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
-            <div className="flex items-center w-1/2">
-              <img src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" alt="Avatar" className="w-10 h-10 rounded-full mr-2 object-cover" />
-              <div>
-                <p className="font-bold">John Paul</p>
-                <p className="text-gray-500 text-sm">1234567890122937</p>
+          {recipients.map((recipient, index) => (
+            <div
+              key={recipient.account_number || index}
+              className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200"
+            >
+              <div className="flex items-center">
+                <img
+                  src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" // Thay bằng URL ảnh thực tế nếu có
+                  alt="Avatar"
+                  className="w-10 h-10 rounded-full mr-2 object-cover"
+                />
+                <div>
+                  <p className="font-bold">{recipient.reminder_name}</p>
+                  <p className="text-gray-500 text-sm">{recipient.account_number}</p>
+                </div>
               </div>
             </div>
-            {/* Repeat for other beneficiaries */}
-          </div>
-          <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
-            <div className="flex items-center w-1/2">
-              <img src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" alt="Avatar" className="w-10 h-10 rounded-full mr-2 object-cover" />
-              <div>
-                <p className="font-bold">John Paul</p>
-                <p className="text-gray-500 text-sm">1234567890122937</p>
-              </div>
-            </div>
-            {/* Repeat for other beneficiaries */}
-          </div>
-          <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
-            <div className="flex items-center w-1/2">
-              <img src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" alt="Avatar" className="w-10 h-10 rounded-full mr-2 object-cover" />
-              <div>
-                <p className="font-bold">John Paul</p>
-                <p className="text-gray-500 text-sm">1234567890122937</p>
-              </div>
-            </div>
-            {/* Repeat for other beneficiaries */}
-          </div>
+          ))}
         </div>
       </div>
     </div>

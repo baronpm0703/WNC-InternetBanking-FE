@@ -4,7 +4,7 @@ import { DashboardHeader } from "./header";
 
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { useEffect } from "react";
-import { fetchAccountInfo } from "@/libs/slices/sliceAccount";
+import { fetchAccountInfo, fetchRecipients } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
 
 export default function Dashboard() {
@@ -20,6 +20,14 @@ export default function Dashboard() {
     const date = timeStampHelper.formatTimestamp(accountInfo.created_at || "");
     console.log("Account Info: ", accountInfo, date);
   }, [accountInfo.name])
+  
+  useEffect(() => {
+    if (!accountInfo.recipient_list) {
+      console.log("Fetching recipient list...");
+      dispatch(fetchRecipients());
+    }
+  }, [dispatch, accountInfo.recipient_list]);
+  
   return (
     <div className="w-screen h-screen py-8 px-2 sm:px-3 bg-[#181818] relative">
       <div className="flex w-full h-full justify-center bg-cover bg-no-repeat">

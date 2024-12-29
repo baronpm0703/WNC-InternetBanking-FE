@@ -18,14 +18,14 @@ export function DataTable<TData, TValue>({
   });
   useEffect(() => {
     table.setPageSize(5)
-  },[])
+  }, [])
   return (
     <>
-      <div className="rounded-md border">
-        <Table>
+      <div className="rounded-2xl border border-white/20 bg-black" style={{ boxShadow: "0px 4px 0px white" }}>
+        <Table >
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow key={headerGroup.id}>
+              <TableRow key={headerGroup.id} className="hover:bg-green-900 hover:rounded-2xl">
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id}>
@@ -43,7 +43,7 @@ export function DataTable<TData, TValue>({
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map(row =>
               (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="data-[state=selected]:bg-blue-400" >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"} className="data-[state=selected]:bg-green-900 hover:bg-green-900" >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
