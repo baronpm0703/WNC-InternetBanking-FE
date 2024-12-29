@@ -6,6 +6,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { interactDialog } from "@/libs/slices/sliceTask";
 import { Button } from "@/components/ui/button";
+import { fetchRecipients, fetchTransactionTarget, saveBeneficiary } from "@/libs/slices/sliceAccount";
+import { toast } from "react-toastify";
 import {
     Form,
     FormControl,
@@ -18,9 +20,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const TransferSchema = z.object({
-    transferTo: z.string().nonempty({ message: "Please select a beneficiary account." }),
-    memorableName: z.string().nonempty({ message: "Memorable name is required." }),
+const SaveBeneficiarySameBankSchema = z.object({
+    account_number: z.string().nonempty({ message: "Please enter account number." }),
+    reminder_name: z.string().nonempty({ message: "Reminder name is required." }),
 });
 
 const TransferSchemaInterBank = z.object({
@@ -33,17 +35,58 @@ const ManageBeneficiaryUI = () => {
     const [samebankOrInterbankTab, setSamebankOrInterbankTab] = useState("sameBank");
     const dispatch = useAppDispatch();
     const { isOpenDialog } = useAppSelector(state => state.task);
-    const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
+    const [selectedBeneficiarySameBank, setSelectedBeneficiarySameBank] = useState({ attribute1: '', attribute2: '' });
     const [searchQuery, setSearchQuery] = useState("");
     const [accountNumberInput, setAccountNumberInput] = useState('');
     const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '' });
+    const { error, accountInfo } = useAppSelector(state => state.account);
+    const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
+    const [inBeneficiaries, setInBeneficiaries] = useState([]);
 
-    const accounts = [
-        { attribute1: "NGUYEN LAM HAI", attribute2: "123456" },
-        { attribute1: "PHAN THAI KHANG", attribute2: "22222" },
-        { attribute1: "NGUYEN PHU MINH BAO", attribute2: "233434" },
-        { attribute1: "NGUYEN ANH KHOA", attribute2: "35667" },
-    ];
+    useEffect(() => {
+      const fetchRecipientsWithNames = async () => {
+        if (!recipients || recipients.length === 0) return;
+  
+        const recipientsWithNames = await Promise.all(
+            recipients.map(async (recipient) => {
+            try {
+              const data = await dispatch(fetchTransactionTarget(recipient.account_number)).unwrap();
+              const bankName = recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : recipient.bank_id;
+
+              return {
+                id: recipient.account_number,
+                identity: {
+                  name: data.name,
+                  phone: "Not Available",
+                  avt: "https://lh4.googleusercontent.com/proxy/-BvxvtLr9pzhfvVNx1CNxelUNQxeRwpfgobPfy46t5-c6_4kMIM_UUraqWpbcTNljDQQEUckfIVgZv00cDJMc3ZZdyOgrp5-PK5t8eDHCkNxupTIE4C7VIB4",
+                },
+                bank: bankName,
+                account_number: recipient.account_number,
+                reminder_name: recipient.reminder_name,
+              };
+            } catch (error) {
+              console.error(`Error fetching name for account_number ${recipient.account_number}:`, error);
+              return {
+                id: recipient.account_number,
+                identity: {
+                  name: "Unknown",
+                  phone: "Not Available",
+                  avt: "https://randomuser.me/api/portraits/placeholder.jpg",
+                },
+                bank: recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : "Unknown Bank",
+                account_number: recipient.account_number,
+                reminder_name: recipient.reminder_name,
+              };
+            }
+          })
+        );
+  
+        setInBeneficiaries(recipientsWithNames);
+      };
+  
+      fetchRecipientsWithNames();
+    }, [dispatch, recipients]);
+
 
     const banks = [
         { attribute1: "MT BANK" },
@@ -59,12 +102,12 @@ const ManageBeneficiaryUI = () => {
         { attribute1: "NGUYEN ANH KHOA", attribute2: "35667", attribute3: "MB BANK" },
     ];
 
-    const form = useForm({
-        resolver: zodResolver(TransferSchema),
+    const saveBeneficiarySameBankForm = useForm({
+        resolver: zodResolver(SaveBeneficiarySameBankSchema),
         defaultValues: {
-            transferFrom: "John Paul - 2222222222222222",
-            transferTo: "",
-            memorableName: "",
+            bank_id: "",
+            account_number: "",
+            reminder_name: "",
         },
     });
 
@@ -78,10 +121,6 @@ const ManageBeneficiaryUI = () => {
         },
     });
 
-    function onSubmitSameBank(data: any) {
-        console.log("Form Submitted:", data);
-    }
-
     function onSubmitInterBank(data: any) {
         console.log("Form Submitted:", data);
     }
@@ -90,34 +129,6 @@ const ManageBeneficiaryUI = () => {
         setSamebankOrInterbankTab(tab);
     };
 
-
-    const handleTransferToInputChange = (event) => {
-        const inputValue = event.target.value.trim();
-
-        if (inputValue === "") {
-            setSelectedTransferTo({ attribute1: "", attribute2: "" });
-            form.setValue("transferTo", "");
-            return;
-        }
-
-        const matchedItem = accounts.find(
-            (item) => item.attribute2 === inputValue
-        );
-
-        if (matchedItem) {
-            setSelectedTransferTo(matchedItem);
-            form.setValue(
-                "transferTo",
-                `${matchedItem.attribute1} - ${matchedItem.attribute2}`
-            );
-        } else {
-            setSelectedTransferTo({ attribute1: "", attribute2: inputValue });
-            form.setError("transferTo", {
-                type: "manual",
-                message: "Account number is not valid.",
-            });
-        }
-    };
 
     const [toBankValue, setToBankValue] = useState('');
 
@@ -161,6 +172,93 @@ const ManageBeneficiaryUI = () => {
         }
     };
 
+    const [inputValue, setInputValue] = useState<string>("");
+
+    const handleInputChangeSameBank = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+        saveBeneficiarySameBankForm.setValue("account_number", "");
+        setSelectedBeneficiarySameBank({ attribute1: "", attribute2: "" });
+        saveBeneficiarySameBankForm.clearErrors("account_number");
+    };
+
+    const handleFetchTargetDataSameBank = () => {
+        if (!inputValue.trim()) {
+            return;
+        }
+
+        const accountNumber = accountInfo.account_number;
+
+        if (accountNumber && accountNumber === inputValue.trim()) {
+            saveBeneficiarySameBankForm.setError("account_number", {
+                type: "manual",
+                message: "You cannot save yourself as your Beneficiary",
+            });
+            return;
+        }
+
+        dispatch(fetchTransactionTarget(inputValue.trim()))
+            .unwrap()
+            .then((data) => {
+                if (accountNumber && accountNumber === data.account_number) {
+                    saveBeneficiarySameBankForm.setError("account_number", {
+                        type: "manual",
+                        message: "You cannot save yourself as your Beneficiary",
+                    });
+                    return;
+                }
+                setSelectedBeneficiarySameBank({
+                    attribute1: data.name,
+                    attribute2: data.account_number,
+                });
+                saveBeneficiarySameBankForm.setValue("account_number", data.account_number);
+                console.log("selected data number", selectedBeneficiarySameBank)
+            })
+            .catch((err) => {
+                console.error("Error fetching target data:", err);
+                saveBeneficiarySameBankForm.setError("account_number", {
+                    type: "manual",
+                    message: "No account number found",
+                });
+            });
+    };
+
+
+    function onSubmitSaveBeneficiarySameBank(data: { account_number: string; bank_id: string; reminder_name: string }) {
+        dispatch(saveBeneficiary(data))
+            .unwrap()
+            .then((response: any) => {
+                console.log("Beneficiary saved successfully:", response);
+    
+                toast.success("Beneficiary saved successfully!", {});
+    
+                dispatch(fetchRecipients())
+                    .unwrap()
+                    .then((recipients) => {
+                        console.log("Updated recipient list:", recipients);
+                        setInBeneficiaries(
+                            recipients.map((recipient: any) => ({
+                                id: recipient.account_number,
+                                identity: {
+                                    name: "Placeholder Name",
+                                    phone: "Not Available",
+                                    avt: "https://randomuser.me/api/portraits/placeholder.jpg",
+                                },
+                                bank: recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : "Unknown Bank",
+                                memorableName: recipient.reminder_name,
+                            }))
+                        );
+                    })
+                    .catch((err) => {
+                        console.error("Error fetching updated recipients:", err);
+                        toast.error("Failed to fetch updated recipients!");
+                    });
+            })
+            .catch((error: any) => {
+                console.error("Error saving beneficiary:", error);
+                toast.error("Failed to save Beneficiary!");
+            });
+    }
+
     return (
         <div className="text-white font-sans flex">
             <div className="flex-1 rounded-3xl">
@@ -196,90 +294,63 @@ const ManageBeneficiaryUI = () => {
                     </div>
 
                     {samebankOrInterbankTab === "sameBank" ? (
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmitSameBank)} className='w-full space-y-6 transition-all duration-1000 transform'>
+                        <Form {...saveBeneficiarySameBankForm}>
+                            <form onSubmit={saveBeneficiarySameBankForm.handleSubmit(onSubmitSaveBeneficiarySameBank)} className='w-full space-y-6 transition-all duration-1000 transform'>
                                 {/* Transfer To */}
                                 <FormField
-                                    control={form.control}
-                                    name="transferTo"
+                                    control={saveBeneficiarySameBankForm.control}
+                                    name="account_number"
                                     render={({ field, fieldState }) => (
                                         <FormItem>
                                             <label className="block text-white text-sm mb-2">Account Number</label>
                                             <FormControl>
                                                 <div className="flex justify-between items-center space-x-3">
                                                     {/* Input Field */}
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Enter account number"
-                                                        value={selectedTransferTo.attribute2}
-                                                        className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                                                            } focus:outline-none`}
-                                                        onChange={handleTransferToInputChange}
-                                                    />
+                                                    <div className={`relative w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${error ? "border-red-500" : "border-gray-800"
+                                                        } focus:outline-none`}>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Enter account number"
+                                                            value={inputValue}
+                                                            className={`w-full bg-gray-900 text-white rounded-xl focus:outline-none`}
+                                                            onChange={handleInputChangeSameBank}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === "Enter") handleFetchTargetDataSameBank();
+                                                            }}
+                                                        />
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleFetchTargetDataSameBank}
+                                                            className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white focus:outline-none"
+                                                        >
+                                                            <svg
+                                                                xmlns="http://www.w3.org/2000/svg"
+                                                                className="h-5 w-5"
+                                                                fill="none"
+                                                                viewBox="0 0 24 24"
+                                                                stroke="currentColor"
+                                                            >
+                                                                <path
+                                                                    strokeLinecap="round"
+                                                                    strokeLinejoin="round"
+                                                                    strokeWidth={2}
+                                                                    d="M5 12h14M12 5l7 7-7 7"
+                                                                />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
 
-                                                    {/* Dropdown Menu */}
                                                     <div className="w-1/2 relative">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <button
-                                                                    type="button"
-                                                                    className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                                                                        } focus:outline-none hover:border-white transition-all duration-200`}
-                                                                >
-                                                                    {selectedTransferTo.attribute1
-                                                                        ? `${selectedTransferTo.attribute1} - ${selectedTransferTo.attribute2}`
-                                                                        : "Select an Account"}
-                                                                </button>
-                                                            </DropdownMenuTrigger>
+                                                        <button
+                                                            type="button"
+                                                            className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
+                                                                } focus:outline-none hover:border-white transition-all duration-200`}
+                                                        >
+                                                            {selectedBeneficiarySameBank.attribute1
+                                                                ? `${selectedBeneficiarySameBank.attribute1} - ${selectedBeneficiarySameBank.attribute2}`
+                                                                : "Account Name - Account Number"}
+                                                        </button>
 
-                                                            <DropdownMenuContent className="w-full">
-                                                                <DropdownMenuLabel>Select an Account</DropdownMenuLabel>
-                                                                <DropdownMenuSeparator />
-                                                                <div className="px-2 py-2">
-                                                                    <input
-                                                                        type="text"
-                                                                        placeholder="Search accounts..."
-                                                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none rounded-xl focus:ring focus:ring-blue-500 text-white"
-                                                                        value={searchQuery}
-                                                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                                                    />
-                                                                </div>
-                                                                <DropdownMenuSeparator />
-                                                                {accounts
-                                                                    .filter((account) =>
-                                                                        `${account.attribute1} - ${account.attribute2}`
-                                                                            .toLowerCase()
-                                                                            .includes(searchQuery.toLowerCase())
-                                                                    )
-                                                                    .map((account) => (
-                                                                        <DropdownMenuItem
-                                                                            key={account.attribute2}
-                                                                            onClick={() => {
-                                                                                setSelectedTransferTo(account);
-                                                                                field.onChange(`${account.attribute1} - ${account.attribute2}`);
-                                                                            }}
-                                                                            className="flex items-center justify-between px-4 py-2 space-x-4"
-                                                                        >
-                                                                            {/* Avatar */}
-                                                                            <div className="flex items-center space-x-4">
-                                                                                <img
-                                                                                    src="https://via.placeholder.com/40" // Thay bằng URL avatar thực tế
-                                                                                    alt={account.attribute1}
-                                                                                    className="w-10 h-10 rounded-full"
-                                                                                />
-                                                                                {/* Tên và số tài khoản */}
-                                                                                <div>
-                                                                                    <p className="text-sm font-medium text-black">{account.attribute1}</p>
-                                                                                    <p className="text-xs font-bold text-gray-400">{account.attribute2}</p>
-                                                                                </div>
-                                                                            </div>
-                                                                            {/* Mũi tên */}
-                                                                            <span className="text-gray-400 text-sx">{'>'}</span>
-                                                                        </DropdownMenuItem>
-
-                                                                    ))}
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
                                                     </div>
                                                 </div>
                                             </FormControl>
@@ -294,8 +365,8 @@ const ManageBeneficiaryUI = () => {
                                 />
 
                                 <FormField
-                                    control={form.control}
-                                    name="memorableName"
+                                    control={saveBeneficiarySameBankForm.control}
+                                    name="reminder_name"
                                     render={({ field, fieldState }) => (
                                         <FormItem>
                                             <label className="block text-white text-sm mb-2">Memorable Name</label>
@@ -418,86 +489,17 @@ const ManageBeneficiaryUI = () => {
                                             <FormItem>
                                                 <label className="block text-white text-sm mb-2">Select Account</label>
                                                 <FormControl>
-                                                    <div className="flex justify-between items-center space-x-3">
-                                                        {/* Input Field */}
-                                                        <input
-                                                            type="text"
-                                                            placeholder="Enter account number"
-                                                            value={selectedTransferToInterBank?.attribute2 || accountNumberInput} // Hiển thị attribute2 hoặc giá trị nhập
-                                                            className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
-                                                                } focus:outline-none`}
-                                                            onChange={(e) => {
-                                                                setAccountNumberInput(e.target.value);
-                                                                handleTransferToInputChangeInterBank(e);
-                                                            }}
-                                                        />
-                                                        <div className="w-1/2 relative">
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <button
-                                                                        type="button"
-                                                                        className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
-                                                                            } focus:outline-none hover:border-white transition-all duration-200`}
-                                                                    >
-                                                                        {selectedTransferToInterBank?.attribute1 && selectedTransferToInterBank?.attribute2
-                                                                            ? `${selectedTransferToInterBank.attribute1} - ${selectedTransferToInterBank.attribute2}`
-                                                                            : 'Select an Account'}
-                                                                    </button>
-
-                                                                </DropdownMenuTrigger>
-
-                                                                <DropdownMenuContent className="w-full">
-                                                                    <DropdownMenuLabel>Select an Account</DropdownMenuLabel>
-                                                                    <DropdownMenuSeparator />
-                                                                    <div className="px-2 py-2">
-                                                                        <input
-                                                                            type="text"
-                                                                            placeholder="Search accounts..."
-                                                                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none rounded-xl focus:ring focus:ring-blue-500 text-white"
-                                                                            value={searchQuery}
-                                                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                                                        />
-                                                                    </div>
-                                                                    <DropdownMenuSeparator />
-                                                                    {interBankAccounts
-                                                                        .filter((interBankAccount) =>
-                                                                            `${interBankAccount.attribute1} - ${interBankAccount.attribute2} - ${interBankAccount.attribute3}`
-                                                                                .toLowerCase()
-                                                                                .includes(searchQuery.toLowerCase())
-                                                                        )
-                                                                        .map((interBankAccount) => (
-                                                                            <DropdownMenuItem
-                                                                                key={interBankAccount.attribute2}
-                                                                                onClick={() => {
-                                                                                    setSelectedTransferToInterBank(interBankAccount);
-                                                                                    const selectedValue = `${interBankAccount.attribute1} - ${interBankAccount.attribute2}`;
-                                                                                    formInterBank.setValue('transferTo', selectedValue, { shouldValidate: true });
-                                                                                    formInterBank.setValue('toBank', interBankAccount.attribute3);
-                                                                                    setToBankValue(interBankAccount.attribute3);
-                                                                                }}
-
-                                                                                className="flex items-center justify-between px-4 py-2 space-x-4"
-                                                                            >
-                                                                                <div className="flex items-center space-x-4">
-                                                                                    <img
-                                                                                        src="https://via.placeholder.com/40"
-                                                                                        alt={interBankAccount.attribute1}
-                                                                                        className="w-10 h-10 rounded-full"
-                                                                                    />
-                                                                                    <div>
-                                                                                        <p className="text-sm font-medium text-black">{interBankAccount.attribute1}</p>
-                                                                                        <p className="text-xs font-bold text-gray-400">{interBankAccount.attribute2}</p>
-                                                                                        <p className="text-xs font-bold text-gray-400">{interBankAccount.attribute3}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                                <span className="text-gray-400 text-sx">{'>'}</span>
-                                                                            </DropdownMenuItem>
-                                                                        ))}
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
-
-                                                    </div>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Enter account number"
+                                                        value={selectedTransferToInterBank?.attribute2 || accountNumberInput} // Hiển thị attribute2 hoặc giá trị nhập
+                                                        className={`w-full form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
+                                                            } focus:outline-none`}
+                                                        onChange={(e) => {
+                                                            setAccountNumberInput(e.target.value);
+                                                            handleTransferToInputChangeInterBank(e);
+                                                        }}
+                                                    />
                                                 </FormControl>
 
                                                 {fieldState.error && (
@@ -563,7 +565,6 @@ const ManageBeneficiaryUI = () => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
-
                 </div>
             </div>
 

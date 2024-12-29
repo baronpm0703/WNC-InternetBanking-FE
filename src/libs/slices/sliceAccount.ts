@@ -95,6 +95,34 @@ export const fetchTransactionTarget = createAsyncThunk(
   }
 );
 
+export const fetchRecipients = createAsyncThunk(
+  "account/fetchRecipients",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/accounts/recipients");
+      return response.data; // Assuming response.data contains recipient list
+    } catch (error: any) {
+      console.error("Error fetching recipient list:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch recipient list."
+      );
+    }
+  }
+);
+
+export const saveBeneficiary = createAsyncThunk(
+  "account/saveBeneficiary",
+  async (beneficiaryData: { account_number: string; bank_id: string; reminder_name: string }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post(`/accounts/save-recipient`, beneficiaryData);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error saving beneficiary:", error);
+      return rejectWithValue(error.response?.data?.message || "Failed to save beneficiary.");
+    }
+  }
+);
+
 export const sliceAccount = createSlice({
   initialState,
   name: "account",
@@ -138,6 +166,29 @@ export const sliceAccount = createSlice({
         state.error = action.payload as string;
         console.error("Transaction target error: ", action.payload);
       })
+      .addCase(fetchRecipients.fulfilled, (state, action: slicePayload<RecipientInfo[]>) => {
+        console.log("Recipient list fetched successfully:", action.payload);
+        state.accountInfo.recipient_list = action.payload; // Save recipients to state
+        state.error = null;
+      })
+      .addCase(fetchRecipients.rejected, (state, action) => {
+        state.error = action.payload as string;
+        console.error("Error fetching recipient list:", action.payload);
+      })
+      .addCase(saveBeneficiary.fulfilled, (state, action: slicePayload<RecipientInfo>) => {
+        console.log("Beneficiary saved successfully:", action.payload);
+        if (state.accountInfo.recipient_list) {
+          state.accountInfo.recipient_list.push(action.payload);
+        } else {
+          state.accountInfo.recipient_list = [action.payload];
+        }
+        state.error = null;
+      })
+      .addCase(saveBeneficiary.rejected, (state, action) => {
+        state.error = action.payload as string;
+        console.error("Error saving beneficiary:", action.payload);
+      });
+      
   },
 })
 

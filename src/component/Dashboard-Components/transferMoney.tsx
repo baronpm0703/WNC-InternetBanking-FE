@@ -18,9 +18,10 @@ import {
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { fetchAccountInfo, fetchTransactionTarget } from "@/libs/slices/sliceAccount";
+import { fetchTransactionTarget, saveBeneficiary } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import { createInternalTransaction, sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
+import { toast } from "react-toastify";
 
 const TransferSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
@@ -69,12 +70,9 @@ const TransferUI = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { error, accountInfo } = useAppSelector(state => state.account);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    console.log("Fetching Account Info");
-    dispatch(fetchAccountInfo());
-  }, []);
-
+  const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
 
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
   const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '', attribute3: '' });
@@ -93,6 +91,7 @@ const TransferUI = () => {
       amount: "",
       purpose: "",
       feePayer: "",
+      saveBeneficiary: "",
     },
   });
 
@@ -126,7 +125,6 @@ const TransferUI = () => {
     },
   });
 
-
   const formOtpSameBank = useForm({
     resolver: zodResolver(OtpFormSchemaSameBank),
     defaultValues: {
@@ -146,7 +144,14 @@ const TransferUI = () => {
     const [transferFromName, ownAccountNumber] = data.transferFrom.split(" - ");
     const [targetName, targetAccountNumber] = data.transferTo.split(" - ");
 
-    // Cập nhật giá trị cho formOtpSameBank
+    if (isSaveBeneficiary && !memory.trim()) {
+      form.setError("saveBeneficiary", {
+        type: "manual",
+        message: "Please enter a memorable name for the beneficiary.",
+      });
+      return;
+    }
+
     formOtpSameBank.setValue("own_account_number", ownAccountNumber);
     formOtpSameBank.setValue("otp", ""); // OTP sẽ được nhập trong bước sau
     formOtpSameBank.setValue("target.account_number", targetAccountNumber);
@@ -155,7 +160,6 @@ const TransferUI = () => {
     formOtpSameBank.setValue("amount", parseFloat(data.amount)); // Đảm bảo là số
     formOtpSameBank.setValue("remarks", data.purpose);
 
-    // Debug để kiểm tra dữ liệu được cập nhật
     console.log("Updated formOtpSameBank:", formOtpSameBank.getValues());
 
     setActiveStep("otp");
@@ -164,6 +168,25 @@ const TransferUI = () => {
       .unwrap()
       .then((response: any) => {
         console.log("Transaction created successfully:", response);
+
+        if (isSaveBeneficiary) {
+          const beneficiaryData = {
+            account_number: targetAccountNumber,
+            bank_id: "6750a0c9a9dc441ad3fbfb9f", 
+            reminder_name: memory,
+          };
+
+          dispatch(saveBeneficiary(beneficiaryData))
+            .unwrap()
+            .then((res) => {
+              console.log("Beneficiary saved successfully:", res);
+              toast.success("Beneficiary saved successfully!");
+            })
+            .catch((err) => {
+              console.error("Failed to save beneficiary:", err);
+              toast.error("Failed to fetch updated recipients!");
+            });
+        }
       })
       .catch((error) => {
         console.error("Error creating transaction:", error);
@@ -175,10 +198,12 @@ const TransferUI = () => {
       .unwrap()
       .then((response: any) => {
         console.log("Transaction created successfully:", response);
+        toast.success("Transaction created successfully!");
         setActiveStep("transferSuccess");
       })
       .catch((error) => {
         console.error("Error creating transaction:", error);
+        toast.error("Failed to create Transaction!")
       });
   }
 
@@ -192,34 +217,6 @@ const TransferUI = () => {
     console.log("Form Submitted otp inter bank:", data);
   }
 
-  // const handleTransferToInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-  //   const inputValue = event.target.value.trim();
-
-  //   if (inputValue === "") {
-  //     setSelectedTransferTo({ attribute1: "", attribute2: "" });
-  //     form.setValue("transferTo", "");
-  //     return;
-  //   }
-
-  //   const matchedItem = accounts.find(
-  //     (item) => item.attribute2 === inputValue
-  //   );
-
-  //   if (matchedItem) {
-  //     setSelectedTransferTo(matchedItem);
-  //     form.setValue(
-  //       "transferTo",
-  //       `${matchedItem.attribute1} - ${matchedItem.attribute2}`
-  //     );
-  //   } else {
-  //     setSelectedTransferTo({ attribute1: "", attribute2: inputValue });
-  //     form.setError("transferTo", {
-  //       type: "manual",
-  //       message: "Account number is not valid.",
-  //     });
-  //   }
-  // };
-
   const [inputValue, setInputValue] = useState<string>("");
 
   const handleInputChangeSameBank = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -228,7 +225,6 @@ const TransferUI = () => {
     setSelectedTransferTo({ attribute1: "", attribute2: "" });
     form.clearErrors("transferTo");
   };
-
 
   const handleFetchTargetDataSameBank = () => {
     if (!inputValue.trim()) {
@@ -295,16 +291,8 @@ const TransferUI = () => {
     }
   };
 
+
   const [accountNumberInput, setAccountNumberInput] = useState('');
-
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const accounts = [
-    { attribute1: "NGUYEN LAM HAI", attribute2: "123456" },
-    { attribute1: "PHAN THAI KHANG", attribute2: "22222" },
-    { attribute1: "NGUYEN PHU MINH BAO", attribute2: "233434" },
-    { attribute1: "NGUYEN ANH KHOA", attribute2: "35667" },
-  ];
 
   const interBankAccounts = [
     { attribute1: "NGUYEN LAM HAI", attribute2: "123456", attribute3: "MT BANK" },
@@ -319,12 +307,6 @@ const TransferUI = () => {
     { attribute1: "AB BANK" },
     { attribute1: "CD BANK" },
   ];
-
-  accounts.filter((account) =>
-    `${account.attribute1} - ${account.attribute2}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  )
 
   interBankAccounts.filter((interBankAccount) =>
     `${interBankAccount.attribute1} - ${interBankAccount.attribute2} - ${interBankAccount.attribute3}`
@@ -491,38 +473,39 @@ const TransferUI = () => {
                                     />
                                   </div>
                                   <DropdownMenuSeparator />
-                                  {accounts
+                                  {recipients
                                     .filter((account) =>
-                                      `${account.attribute1} - ${account.attribute2}`
+                                      `${account.reminder_name} - ${account.account_number}`
                                         .toLowerCase()
                                         .includes(searchQuery.toLowerCase())
                                     )
                                     .map((account) => (
                                       <DropdownMenuItem
-                                        key={account.attribute2}
+                                        key={account.account_number}
                                         onClick={() => {
-                                          setSelectedTransferTo(account);
-                                          field.onChange(`${account.attribute1} - ${account.attribute2}`);
+                                          setSelectedTransferTo({
+                                            attribute1: account.reminder_name,
+                                            attribute2: account.account_number,
+                                          });
+                                          setInputValue(account.account_number);
+                                          console.log("Selected transfer", selectedTransferTo)
+                                          field.onChange(`${account.reminder_name} - ${account.account_number}`);
                                         }}
                                         className="flex items-center justify-between px-4 py-2 space-x-4"
                                       >
-                                        {/* Avatar */}
                                         <div className="flex items-center space-x-4">
                                           <img
-                                            src="https://via.placeholder.com/40" // Thay bằng URL avatar thực tế
-                                            alt={account.attribute1}
+                                            src="https://via.placeholder.com/40" // URL avatar thực tế
+                                            alt={account.reminder_name}
                                             className="w-10 h-10 rounded-full"
                                           />
-                                          {/* Tên và số tài khoản */}
                                           <div>
-                                            <p className="text-sm font-medium text-black">{account.attribute1}</p>
-                                            <p className="text-xs font-bold text-gray-400">{account.attribute2}</p>
+                                            <p className="text-sm font-medium text-black">{account.reminder_name}</p>
+                                            <p className="text-xs font-bold text-gray-400">{account.account_number}</p>
                                           </div>
                                         </div>
-                                        {/* Mũi tên */}
                                         <span className="text-gray-400 text-sx">{'>'}</span>
                                       </DropdownMenuItem>
-
                                     ))}
                                 </DropdownMenuContent>
                               </DropdownMenu>
@@ -560,15 +543,24 @@ const TransferUI = () => {
                             Save as Beneficiary
                           </label>
 
-                          {/* Input Memory (hiển thị khi checkbox được chọn) */}
                           {isSaveBeneficiary && (
-                            <input
-                              type="text"
-                              placeholder="Enter memory"
-                              className="form-input w-1/2 bg-gray-900 text-white rounded-xl px-4 py-2 border border-gray-800 focus:outline-none"
-                              value={memory}
-                              onChange={(e) => setMemory(e.target.value)}
-                            />
+                            <div className="flex-1">
+                              <input
+                                type="text"
+                                placeholder="Enter memory"
+                                className={`form-input w-full bg-gray-900 text-white rounded-xl px-4 py-2 border ${form.formState.errors.saveBeneficiary ? "border-red-500" : "border-gray-800"} focus:outline-none`}
+                                value={memory}
+                                onChange={(e) => {
+                                  setMemory(e.target.value);
+                                  form.clearErrors("saveBeneficiary");
+                                }}
+                              />
+                              {form.formState.errors.saveBeneficiary && (
+                                <p className="text-red-500 text-sm mt-1">
+                                  {form.formState.errors.saveBeneficiary.message}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </div>
                       </FormItem>
@@ -643,14 +635,14 @@ const TransferUI = () => {
                             {/* Checkbox for Receiver Pay */}
                             <label className="flex items-center space-x-2">
                               <input
-                                type="radio" value="Receiver Pay"
-                                checked={field.value === "Receiver Pay"}
+                                type="radio" value="Recipient Pay"
+                                checked={field.value === "Recipient Pay"}
                                 onChange={() =>
-                                  field.onChange(field.value === "Receiver Pay" ? "" : "Receiver Pay")
+                                  field.onChange(field.value === "Recipient Pay" ? "" : "Recipient Pay")
                                 }
                                 className="w-5 h-5 text-blue-500 rounded"
                               />
-                              <span className="text-white text-sm">Receiver Pay</span>
+                              <span className="text-white text-sm">Recipient Pay</span>
                             </label>
                           </div>
                         </FormControl>
@@ -1334,36 +1326,24 @@ const TransferUI = () => {
         </div>
         <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)]">
           <h3 className="text-xl font-bold mb-4">Favorite Beneficiaries</h3>
-          <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
-            <div className="flex items-center w-1/2">
-              <img src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" alt="Avatar" className="w-10 h-10 rounded-full mr-2 object-cover" />
-              <div>
-                <p className="font-bold">John Paul</p>
-                <p className="text-gray-500 text-sm">1234567890122937</p>
+          {recipients.map((recipient, index) => (
+            <div
+              key={recipient.account_number || index}
+              className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200"
+            >
+              <div className="flex items-center">
+                <img
+                  src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" // Thay bằng URL ảnh thực tế nếu có
+                  alt="Avatar"
+                  className="w-10 h-10 rounded-full mr-2 object-cover"
+                />
+                <div>
+                  <p className="font-bold">{recipient.reminder_name}</p>
+                  <p className="text-gray-500 text-sm">{recipient.account_number}</p>
+                </div>
               </div>
             </div>
-            {/* Repeat for other beneficiaries */}
-          </div>
-          <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
-            <div className="flex items-center w-1/2">
-              <img src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" alt="Avatar" className="w-10 h-10 rounded-full mr-2 object-cover" />
-              <div>
-                <p className="font-bold">John Paul</p>
-                <p className="text-gray-500 text-sm">1234567890122937</p>
-              </div>
-            </div>
-            {/* Repeat for other beneficiaries */}
-          </div>
-          <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
-            <div className="flex items-center w-1/2">
-              <img src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg" alt="Avatar" className="w-10 h-10 rounded-full mr-2 object-cover" />
-              <div>
-                <p className="font-bold">John Paul</p>
-                <p className="text-gray-500 text-sm">1234567890122937</p>
-              </div>
-            </div>
-            {/* Repeat for other beneficiaries */}
-          </div>
+          ))}
         </div>
       </div>
     </div >

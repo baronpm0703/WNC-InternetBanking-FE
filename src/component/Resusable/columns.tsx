@@ -140,7 +140,7 @@ export const columns: ColumnDef<Payment>[] = [
               <MoreHorizontal className="w-5 h-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
+          <DropdownMenuContent align="end" className="bg-white p-2 rounded-xl z-10 text-black">
             <DropdownMenuLabel className="mb-2">Actions</DropdownMenuLabel>
             <DropdownMenuItem onClick={() => navigator.clipboard.writeText(payment.id)}>
               Copy Payment Id
@@ -287,7 +287,7 @@ export const debtColumns: ColumnDef<Debt>[] = [
               <MoreHorizontal className="w-5 h-5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
+          <DropdownMenuContent align="end" className="bg-white p-2 rounded-xl z-10 text-black">
             <DropdownMenuItem onClick={handleRepay}>Repay Debt</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleCancel} onSelect={(e) => e.preventDefault()}>Cancel</DropdownMenuItem>
@@ -299,38 +299,6 @@ export const debtColumns: ColumnDef<Debt>[] = [
   }
 ]
 
-export const inBeneficiaries: Beneficiary[] = [
-  {
-    id: "728ed52f",
-    identity: {
-      name: "Nguyen Van A",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/75.jpg"
-    },
-    bank: "BC BANK",
-    memorableName: "ANHA"
-  },
-  {
-    id: "489e1d42",
-    identity: {
-      name: "Nguyen Van B",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/76.jpg"
-    },
-    bank: "AB BANK",
-    memorableName: "ANH B"
-  },
-  {
-    id: "7d8e1d42",
-    identity: {
-      name: "Nguyen Van C",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/74.jpg"
-    },
-    bank: "TP BANK",
-    memorableName: "ANH C"
-  }
-]
 export const transactionHistory: Transaction[] = [
   {
     id: "728ed52f",
@@ -400,7 +368,11 @@ export const beneficiaryColumns: ColumnDef<Beneficiary>[] = [
     header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
   },
   {
-    accessorKey: "memorableName",
+    accessorKey: "account_number",
+    header: () => <p className="text-left text-[#E0FFBC]">Account Number</p>,
+  },
+  {
+    accessorKey: "reminder_name",
     header: () => <p className="text-left text-[#E0FFBC]">Memorable Name</p>,
   },
   {
@@ -423,7 +395,7 @@ export const beneficiaryColumns: ColumnDef<Beneficiary>[] = [
               <MoreHorizontal className="w-5 h-5" />
             </Button >
           </DropdownMenuTrigger >
-          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
+          <DropdownMenuContent align="end" className="bg-white p-2 rounded-xl z-10 text-black">
             <DropdownMenuItem onClick={handleEdit}>Edit</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleRemove} onSelect={(e) => e.preventDefault()}>Remove</DropdownMenuItem>
@@ -632,7 +604,7 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
               <MoreHorizontal className="w-5 h-5" />
             </Button >
           </DropdownMenuTrigger >
-          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
+          <DropdownMenuContent align="end" className="bg-white p-2 rounded-xl z-10 text-black">
             <DropdownMenuItem onClick={handleDeposit} onSelect={(e) => e.preventDefault()}>Deposit Money</DropdownMenuItem>
             <DropdownMenuItem onClick={handleViewTransaction} onSelect={(e) => e.preventDefault()}>View Transaction History</DropdownMenuItem>
           </DropdownMenuContent >
