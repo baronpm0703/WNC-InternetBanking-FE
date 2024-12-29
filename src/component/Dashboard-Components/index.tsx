@@ -19,7 +19,7 @@ export default function Dashboard() {
     //Convert created string to date
     const date = timeStampHelper.formatTimestamp(accountInfo.created_at || "");
     console.log("Account Info: ", accountInfo, date);
-  }, [name])
+  }, [accountInfo.name])
   return (
     <div className="w-screen h-screen py-8 px-2 sm:px-3 bg-[#181818] relative">
       <div className="flex w-full h-full justify-center bg-cover bg-no-repeat">

@@ -1,6 +1,11 @@
 import apiClient from "@/helper/apiClient";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
+export type RecipientInfo = {
+  account_number: string
+  bank_id: string
+  reminder_name: string
+}
 export type AccountInfo = {
   name: string
   email: string
@@ -8,6 +13,8 @@ export type AccountInfo = {
   account_number: string
   created_at?: string
   role: string  
+  recipient_list?: RecipientInfo[]
+  indebt_list?: string[]
 }
 
 export type TransactionTarget = {
@@ -95,6 +102,7 @@ export const sliceAccount = createSlice({
   extraReducers(builder) {
     builder
       .addCase(fetchAccountInfo.fulfilled, (state, action: slicePayload<AccountInfo>) => {
+        console.log("Payload Account Info: ", action.payload);
         state.accountInfo = action.payload;
         state.error = ""
       })
