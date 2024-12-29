@@ -113,7 +113,7 @@ const TransferUI = () => {
     setActiveStep("otp");
   }
 
-  const handleTransferToInputChange = (event) => {
+  const handleTransferToInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = event.target.value.trim();
 
     if (inputValue === "") {
@@ -750,9 +750,7 @@ const TransferUI = () => {
                   </div>
                 </div>
 
-                <button className="w-full py-3 bg-[#B9FF66] text-black font-bold rounded-full">
-                  Transfer
-                </button> */}
+                 */}
               </form>
             )}
         </div>

@@ -209,6 +209,7 @@ export const sliceAuth = createSlice({
             state.description = AuthRouteDescriptions[action.payload];
         },
         newToken: (state, action: slicePayload<AuthToken>) => {
+            console.log("New Token: ", action.payload);
             state.token = action.payload;
         }
     },
