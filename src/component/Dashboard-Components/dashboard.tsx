@@ -1,8 +1,18 @@
+import timeStampHelper from "@/helper/convertTimeStamp";
+import currencyHelper from "@/helper/currencyHelper";
+import { useAppSelector } from "@/libs/hooks";
+import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const DashboardUI = () => {
   const navigate = useNavigate();
-
+  const { error, accountInfo } = useAppSelector(state => state.account);
+  useEffect(() => {
+    console.log("Before Move Account Info: ", accountInfo);
+    if (accountInfo.role !== "Customer") {
+      navigate(`/${accountInfo.role}`);
+    }
+  }, [accountInfo.role]);
   return (
     <div className="text-white font-sans flex">
       <div className="flex-1 overflow-y-auto pr-4">
@@ -252,21 +262,21 @@ const DashboardUI = () => {
           <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
             <p className="font-bold mb-4">My Card</p>
             <div className="bg-gradient-to-br from-green-400 to-blue-300 rounded-3xl p-8 justify-between relative shadow-md mb-4">
-              <div className="text-black font-medium mb-6">Lora Lewis</div>
+              <div className="text-black font-medium mb-6">{accountInfo.name}</div>
 
               <div className="text-black text-lg tracking-widest space-y-1 mb-6">
                 <p>1234 5678 0102 2937</p>
               </div>
 
               <div className="flex justify-between items-end">
-                <div className="text-black text-sm">Lora Lewis</div>
-                <div className="text-black text-sm">02/2024</div>
+                <div className="text-black text-sm">{accountInfo.name}</div>
+                <div className="text-black text-sm">{timeStampHelper.formatToMonthYear(accountInfo.created_at || "")}</div>
               </div>
 
               <div className="absolute top-5 right-5 text-black font-bold text-lg">VISA</div>
             </div>
             <p className="font-bold mb-2">Card Balance</p>
-            <h2 className="text-2xl font-bold">$15,595.015</h2>
+            <h2 className="text-2xl font-bold">{currencyHelper.convertToCurrency(accountInfo.account_balance)}</h2>
           </div>
         </div>
         <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)]">

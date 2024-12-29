@@ -100,7 +100,7 @@ const TransferUI = () => {
     setActiveStep("otp");
   }
 
-  const handleTransferToInputChange = (event) => {
+  const handleTransferToInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = event.target.value.trim();
 
     if (inputValue === "") {
