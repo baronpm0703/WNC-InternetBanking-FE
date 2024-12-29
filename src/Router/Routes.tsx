@@ -6,6 +6,7 @@ import DashboardUI from "@/component/Dashboard-Components/dashboard";
 import DebtReminderUI from "@/component/Dashboard-Components/debtReminders";
 import DepositUI from "@/component/Dashboard-Components/deposit";
 import ManageBeneficiaryUI from "@/component/Dashboard-Components/manageBeneficiary";
+import ProfileUI from "@/component/Dashboard-Components/profile";
 import TransactionUI from "@/component/Dashboard-Components/transactions";
 import TransferUI from "@/component/Dashboard-Components/transferMoney";
 import AuthScreen from "@/component/Login-Components";
@@ -51,7 +52,7 @@ export const router = createBrowserRouter([
           { path: "debt-reminders", element: <DebtReminderUI /> },
           { path: "settings", element: <TransferUI /> },
           { path: "help-center", element: <TransferUI /> },
-          { path: "profile", element: <TransferUI /> },
+          { path: "profile", element: <ProfileUI /> },
           { path: "logout", element: <Navigate to="/auth" replace /> },
           { path: "customer-account", element: <CustomerAccountUI /> },
           { path: "deposit-money", element: <DepositUI /> },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,7 +33,7 @@ const TransferSchema = z.object({
 
 const TransferInterBankSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
-  toBank: z.string().nonempty({ message: "Please select a beneficiary account." }),
+  toBank: z.string().nonempty({ message: "Please select a bank account." }),
   transferTo: z.string().nonempty({ message: "Please select a beneficiary account." }),
   amount: z
     .string()
@@ -50,13 +50,13 @@ const TransferUI = () => {
   const navigate = useNavigate();
 
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
-  const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '' });
+  const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '', attribute3: '' });
 
   const setActiveTabAndCloseDropdowns = (tab: string) => {
     setActiveTab(tab);
   };
 
-  const [formData, setFormData] = useState(null); // Dữ liệu từ form đầu tiên
+  const [formData, setFormData] = useState(null);
 
   const form = useForm({
     resolver: zodResolver(TransferSchema),
@@ -94,6 +94,7 @@ const TransferUI = () => {
     setFormData(data);
     setActiveStep("otp");
   }
+
   function onSubmitSameBank(data: any) {
     console.log("Form Submitted:", data);
     setFormData(data);
@@ -129,32 +130,38 @@ const TransferUI = () => {
   };
 
   const handleTransferToInputChangeInterBank = (event) => {
-    const inputValue = event.target.value.trim();
+    const inputAccountNumber = event.target.value.trim();
+    setAccountNumberInput(inputAccountNumber);
 
-    if (inputValue === "") {
-      setSelectedTransferToInterBank({ attribute1: "", attribute2: "" });
+    const toBankValue = formInterBank.watch('toBank');
+
+    if (inputAccountNumber === "") {
+      setSelectedTransferToInterBank({ attribute1: "", attribute2: "", attribute3: "" });
       formInterBank.setValue("transferTo", "");
       return;
     }
 
-    const matchedItem = accounts.find(
-      (item) => item.attribute2 === inputValue
+    const matchedAccount = interBankAccounts.find(
+      (account) =>
+        account.attribute2 === inputAccountNumber && account.attribute3 === toBankValue
     );
 
-    if (matchedItem) {
-      setSelectedTransferToInterBank(matchedItem);
+    if (matchedAccount) {
+      setSelectedTransferToInterBank(matchedAccount);
       formInterBank.setValue(
         "transferTo",
-        `${matchedItem.attribute1} - ${matchedItem.attribute2}`
+        `${matchedAccount.attribute1} - ${matchedAccount.attribute2}`
       );
+      formInterBank.clearErrors("transferTo"); // Xóa lỗi nếu có
     } else {
-      setSelectedTransferToInterBank({ attribute1: "", attribute2: inputValue });
+      setSelectedTransferToInterBank({ attribute1: "", attribute2: inputAccountNumber, attribute3: "" });
       formInterBank.setError("transferTo", {
         type: "manual",
-        message: "Account number is not valid.",
+        message: "Account number is not valid or does not match the selected bank.",
       });
     }
   };
+
 
   const [accountNumberInput, setAccountNumberInput] = useState('');
 
@@ -201,6 +208,16 @@ const TransferUI = () => {
 
   const [isSaveBeneficiary, setIsSaveBeneficiary] = useState(false);
   const [memory, setMemory] = useState("");
+
+  const [toBankValue, setToBankValue] = useState('');
+
+  useEffect(() => {
+    const subscription = formInterBank.watch((value) => {
+      setToBankValue(value.toBank || '');
+    });
+    return () => subscription.unsubscribe();
+  }, [formInterBank]);
+
 
   return (
     <div className="text-white font-sans flex">
@@ -498,8 +515,6 @@ const TransferUI = () => {
                 <form onSubmit={form.handleSubmit(onSubmitSameBankOTP)} className="w-full space-y-6">
                   <div className="mt-6">
                     <h3 className="text-white text-lg text-center font-bold mb-4">Confirm Transfer</h3>
-
-                    {/* Các thông tin xác nhận được căn chỉnh với justify-between */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Transfer From:</p>
                       <p className="text-white font-bold">{formData?.transferFrom}</p>
@@ -560,8 +575,12 @@ const TransferUI = () => {
             : (
               activeStep === "transfer" ? (
                 <Form {...formInterBank}>
-                  <form onSubmit={formInterBank.handleSubmit(onSubmitInterBank)} className="w-full space-y-6">
-                    {/* Transfer From */}
+                  <form onSubmit={formInterBank.handleSubmit(
+                    onSubmitInterBank,
+                    (errors) => {
+                      console.error("Validation errors:", errors);
+                    }
+                  )} className="w-full space-y-6">
                     <FormField
                       control={formInterBank.control}
                       name="transferFrom"
@@ -585,8 +604,6 @@ const TransferUI = () => {
                       control={formInterBank.control}
                       name="toBank"
                       render={({ field, fieldState }) => {
-                        const toBankValue = formInterBank.watch('toBank');
-
                         return (
                           <FormItem>
                             <label className="block text-white text-sm mb-2">To Bank</label>
@@ -633,7 +650,7 @@ const TransferUI = () => {
                                       >
                                         <div className="flex items-center space-x-4">
                                           <img
-                                            src={bank.logoUrl || 'https://via.placeholder.com/40'}
+                                            src={'https://via.placeholder.com/40'}
                                             alt={bank.attribute1}
                                             className="w-10 h-10 rounded-full"
                                           />
@@ -674,11 +691,10 @@ const TransferUI = () => {
                                 className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
                                   } focus:outline-none`}
                                 onChange={(e) => {
-                                  setAccountNumberInput(e.target.value); // Cập nhật giá trị input
-                                  handleTransferToInputChangeInterBank(e); // Gọi hàm xử lý logic
+                                  setAccountNumberInput(e.target.value);
+                                  handleTransferToInputChangeInterBank(e);
                                 }}
                               />
-
                               <div className="w-1/2 relative">
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
@@ -718,10 +734,10 @@ const TransferUI = () => {
                                           key={interBankAccount.attribute2}
                                           onClick={() => {
                                             setSelectedTransferToInterBank(interBankAccount);
-                                            field.onChange(
-                                              `${interBankAccount.attribute1} - ${interBankAccount.attribute2}`
-                                            );
-                                            formInterBank.setValue('toBank', interBankAccount.attribute3); // Update To Bank with attribute3
+                                            const selectedValue = `${interBankAccount.attribute1} - ${interBankAccount.attribute2}`;
+                                            formInterBank.setValue('transferTo', selectedValue, { shouldValidate: true });
+                                            formInterBank.setValue('toBank', interBankAccount.attribute3);
+                                            setToBankValue(interBankAccount.attribute3);
                                           }}
                                           className="flex items-center justify-between px-4 py-2 space-x-4"
                                         >
@@ -743,6 +759,7 @@ const TransferUI = () => {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
+                            
                             </div>
                           </FormControl>
 
@@ -953,246 +970,6 @@ const TransferUI = () => {
                   </form>
                 </Form>
               ))
-            // <form>
-            //    <div className="grid grid-cols-1 gap-4 mb-6">
-            //     <div className="relative w-full bg-gray-900 text-white rounded-2xl px-4 py-3 border border-gray-800 hover:border-white transition-all duration-200" onClick={toggleDropdownTransferFrom}>
-            //       <label className="block text-white text-xs mb-1">Transfer From</label>
-            //       <div className="flex justify-between items-center">
-            //         {selectedAccount.attribute1 === '' ? (
-            //           <span className="text-gray-500">Select Account</span>
-            //         ) : (
-            //           <div className="flex items-center">
-            //             <span className="text-white font-bold">{selectedAccount.attribute1}</span>
-            //             <span className="text-gray-500 ml-2">- {selectedAccount.attribute2}</span>
-            //           </div>
-            //         )}
-            //         <div className="flex items-center justify-center w-6 h-6 rounded-full border border-white">
-            //           <svg
-            //             xmlns="http://www.w3.org/2000/svg"
-            //             fill="none"
-            //             viewBox="0 0 24 24"
-            //             strokeWidth={2}
-            //             stroke="currentColor"
-            //             className="w-4 h-4 text-white"
-            //           >
-            //             <path
-            //               strokeLinecap="round"
-            //               strokeLinejoin="round"
-            //               d="M19 9l-7 7-7-7"
-            //             />
-            //           </svg>
-            //         </div>
-            //       </div>
-            //       {isDropdownOpenTransferFrom && (
-            //         <ItemDropdown
-            //           title="Select Source Account"
-            //           items={[
-            //             { attribute1: 'John Paul', attribute2: '2222222222222222' },
-            //             { attribute1: 'Kenijen', attribute2: '1234567890122937' },
-            //             { attribute1: 'Kendrick', attribute2: '4444444444444444' },
-            //           ]}
-            //           selectedItem={selectedAccount}
-            //           setSelectedItem={setSelectedAccount}
-            //           isDropdownOpen={isDropdownOpenTransferFrom}
-            //           setIsDropdownOpen={setIsDropdownOpenTransferFrom}
-            //         />
-            //       )}
-            //     </div>
-
-            //     <div
-            //       className={`relative w-full rounded-2xl px-4 py-3 border ${selectedInterBankTransferTo.attribute1 !== '' ? 'bg-gray-800 border-gray-600 cursor-not-allowed' : 'bg-gray-900 border-gray-800 hover:border-white'
-            //         } transition-all duration-200`}
-            //     >
-            //       <label className="block text-white text-xs mb-1">To Bank</label>
-            //       <div className="flex justify-between items-center">
-            //         <input
-            //           type="text"
-            //           placeholder="Select Bank"
-            //           className={`w-full bg-transparent text-white font-bold focus:outline-none ${selectedInterBankTransferTo.attribute1 !== ''
-            //             ? 'bg-gray-800 cursor-not-allowed text-gray-500'
-            //             : ''
-            //             }`}
-            //           value={selectedBank.attribute1 || ''}
-            //           readOnly // Không cho nhập
-            //           onClick={!selectedInterBankTransferTo.attribute1 ? toggleDropdownSelectBank : undefined} // Chỉ mở dropdown nếu chưa disabled
-            //         />
-            //         <div
-            //           className="flex items-center justify-center w-6 h-6 rounded-full border border-white"
-            //           onClick={!selectedInterBankTransferTo.attribute1 ? toggleDropdownSelectBank : undefined} // Chỉ mở dropdown nếu chưa disable
-            //         >
-            //           <svg
-            //             xmlns="http://www.w3.org/2000/svg"
-            //             fill="none"
-            //             viewBox="0 0 24 24"
-            //             strokeWidth={2}
-            //             stroke="currentColor"
-            //             className="w-4 h-4 text-white"
-            //           >
-            //             <path
-            //               strokeLinecap="round"
-            //               strokeLinejoin="round"
-            //               d="M19 9l-7 7-7-7"
-            //             />
-            //           </svg>
-            //         </div>
-            //       </div>
-            //       {isDropdownOpenSelectBank && !selectedInterBankTransferTo.attribute1 && ( // Chỉ mở dropdown nếu input không bị disable
-            //         <ItemDropdown
-            //           title="Select Bank"
-            //           items={[
-            //             { attribute1: 'DONG A BANK', attribute2: 'Dong A Commercial Joint stock Bank' },
-            //             { attribute1: 'MB BANK', attribute2: 'MB Commercial Joint stock Bank' },
-            //             { attribute1: 'TP BANK', attribute2: 'TienPhong Commercial Joint stock Bank' },
-            //             { attribute1: 'VP BANK', attribute2: 'VP Commercial Joint stock Bank' },
-            //           ]}
-            //           selectedItem={selectedBank}
-            //           setSelectedItem={setSelectedBank}
-            //           isDropdownOpen={isDropdownOpenSelectBank}
-            //           setIsDropdownOpen={setIsDropdownOpenSelectBank}
-            //         />
-            //       )}
-            //     </div>
-
-
-            //     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            //       <div className="relative w-full bg-gray-900 text-white rounded-2xl px-4 py-3 border border-gray-800 hover:border-white transition-all duration-200">
-            //         <label className="block text-white text-xs mb-1">Account Number</label>
-            //         <div className="flex items-center">
-            //           {selectedInterBankTransferTo.attribute1 === '' ? (
-            //             <input
-            //               type="text"
-            //               placeholder="Enter Account Number"
-            //               className="bg-transparent w-full text-white font-bold focus:outline-none"
-            //             />
-            //           ) : (
-            //             <div className="flex items-center">
-            //               <span className="text-white font-bold">{selectedInterBankTransferTo.attribute3}</span>
-            //               <FontAwesomeIcon
-            //                 icon={faTrash}
-            //                 onClick={() => setSelectedInterBankTransferTo({ attribute1: '', attribute2: '', attribute3: '' })}
-            //                 className="ml-2 text-white-500 hover:text-white-700 cursor-pointer"
-            //               />
-            //             </div>
-            //           )}
-            //           <div className="flex items-center justify-center w-6 h-6 rounded-full border border-white ml-2" onClick={toggleDropdownInterBankTransferTo}>
-            //             <svg
-            //               xmlns="http://www.w3.org/2000/svg"
-            //               fill="none"
-            //               viewBox="0 0 24 24"
-            //               strokeWidth={2}
-            //               stroke="currentColor"
-            //               className="w-4 h-4 text-white"
-            //             >
-            //               <path
-            //                 strokeLinecap="round"
-            //                 strokeLinejoin="round"
-            //                 d="M19 9l-7 7-7-7"
-            //               />
-            //             </svg>
-            //           </div>
-            //         </div>
-            //         {isDropdownOpenInterBankTransferTo && (
-            //           <ItemDropdownAccountInterBank
-            //             title="Select Beneficiary Account"
-            //             items={[
-            //               { attribute1: 'John Paul', attribute2: 'Dong A Bank', attribute3: '2222222222222222' },
-            //               { attribute1: 'Kenijen', attribute2: 'MB Bank', attribute3: '1234567890122937' },
-            //               { attribute1: 'Kendrick', attribute2: 'TP Bank', attribute3: '4444444444444444' },
-            //             ]}
-            //             selectedItem={selectedInterBankTransferTo}
-            //             setSelectedItem={(item) => {
-            //               setSelectedInterBankTransferTo(item);
-            //               setSelectedBank({ attribute1: item.attribute2, attribute2: '' }); // Cập nhật bank theo account
-            //             }}
-            //             isDropdownOpen={isDropdownOpenInterBankTransferTo}
-            //             setIsDropdownOpen={setIsDropdownOpenInterBankTransferTo}
-            //           />
-            //         )}
-            //       </div>
-
-            //       <div className="relative w-full bg-gray-900 text-white rounded-2xl px-4 py-3 border border-gray-800 hover:border-white transition-all duration-200">
-            //         <label className="block text-white text-xs mb-1">Account Name</label>
-            //         <input
-            //           type="text"
-            //           placeholder="Enter account name"
-            //           className="bg-transparent w-full text-white font-bold focus:outline-none"
-            //           value={selectedInterBankTransferTo.attribute1}
-            //           readOnly
-            //         />
-            //       </div>
-            //     </div>
-            //   </div>
-            //   <div className="flex items-center mb-6">
-            //     <input
-            //       type="checkbox"
-            //       id="save-beneficiary"
-            //       className="form-checkbox text-green-500 h-5 w-5"
-            //       checked={isSaveAsBeneficiaryChecked}
-            //       onChange={handleSaveAsBeneficiaryChange}
-            //     />
-            //     <label htmlFor="save-beneficiary" className="text-gray-100 ml-2">
-            //       Save As Beneficiary
-            //     </label>
-            //     {isSaveAsBeneficiaryChecked && (
-            //       <div className="ml-4 flex-1">
-            //         <input
-            //           type="text"
-            //           id="memorable-name"
-            //           placeholder="Enter memorable name"
-            //           className="w-full bg-gray-900 text-white rounded-xl px-4 py-2 border border-gray-800 focus:outline-none hover:border-white transition-all duration-200"
-            //         />
-            //       </div>
-            //     )}
-            //   </div>
-
-            //   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            //     <div className="relative">
-            //       <label className="block text-gray-400 text-sm mb-1">Amount</label>
-            //       <div className="flex items-center bg-gray-900 rounded-2xl border border-gray-800 border border-gray-800 hover:border-white transition-all duration-200">
-            //         <input
-            //           type="text"
-            //           placeholder="100.000"
-            //           className="w-full py-6 px-4 bg-transparent text-white focus:outline-none"
-            //         />
-            //         <span className="px-4 text-gray-400">VND</span>
-            //       </div>
-            //     </div>
-            //     <div className="relative">
-            //       <label className="block text-gray-400 text-sm mb-1">Purpose of Transfer</label>
-            //       <input
-            //         type="text"
-            //         placeholder="Tien an sang hom nay"
-            //         className="w-full py-6 px-4 bg-gray-900 text-white rounded-2xl border border-gray-800 focus:outline-none border border-gray-800 hover:border-white transition-all duration-200"
-            //       />
-            //     </div>
-            //   </div>
-
-            //   <div className="mb-6">
-            //     <p className="text-gray-400 text-sm mb-2">Fee Payer:</p>
-            //     <div className="flex space-x-4">
-            //       <label className="flex items-center space-x-2">
-            //         <input
-            //           type="radio"
-            //           name="fee-payer"
-            //           className="form-radio text-green-500 focus:ring-0"
-            //         />
-            //         <span className="text-white">Sender</span>
-            //       </label>
-            //       <label className="flex items-center space-x-2">
-            //         <input
-            //           type="radio"
-            //           name="fee-payer"
-            //           className="form-radio text-green-500 focus:ring-0"
-            //         />
-            //         <span className="text-white">Receiver</span>
-            //       </label>
-            //     </div>
-            //   </div>
-
-            //   <button className="w-full py-3 bg-[#B9FF66] text-black font-bold rounded-full">
-            //     Transfer
-            //   </button> 
-            // </form>
           }
         </div>
         <div className="mt-8 p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
