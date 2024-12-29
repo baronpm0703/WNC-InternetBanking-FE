@@ -5,9 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons'
-// import { faTrash } from "@fortawesome/free-solid-svg-icons";
-// import ItemDropdown from './dropdown';
-// import ItemDropdownAccountInterBank from "./dropdownAccountInterBank";
+import currencyHelper from "@/helper/currencyHelper";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,6 +17,10 @@ import {
 } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { useAppDispatch, useAppSelector } from "@/libs/hooks";
+import { fetchAccountInfo, fetchTransactionTarget } from "@/libs/slices/sliceAccount";
+import timeStampHelper from "@/helper/convertTimeStamp";
+import { createInternalTransaction, sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
 
 const TransferSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
@@ -29,6 +31,23 @@ const TransferSchema = z.object({
     .regex(/^\d+(\.\d{1,2})?$/, { message: "Please enter a valid amount." }),
   purpose: z.string().nonempty({ message: "Purpose is required." }),
   feePayer: z.string().nonempty({ message: "Please select a fee payer." }),
+});
+
+const OtpFormSchemaSameBank = z.object({
+  own_account_number: z.string().nonempty({ message: "Source account is required." }),
+  otp: z
+    .string()
+    .nonempty({ message: "OTP is required." })
+    .regex(/^\d{6}$/, { message: "OTP must be a 6-digit number." }),
+  target: z.object({
+    account_number: z.string().nonempty({ message: "Beneficiary account number is required." }),
+    name: z.string().nonempty({ message: "Beneficiary name is required." }),
+  }),
+  payment_method: z.string().nonempty({ message: "Payment method is required." }),
+  amount: z
+    .number()
+    .min(0.01, { message: "Amount must be greater than 0." }),
+  remarks: z.string().optional(),
 });
 
 const TransferInterBankSchema = z.object({
@@ -48,6 +67,14 @@ const TransferUI = () => {
   const [activeTab, setActiveTab] = useState("sameBank");
   const [activeStep, setActiveStep] = useState("transfer"); // New state for tracking steps
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { error, accountInfo } = useAppSelector(state => state.account);
+
+  useEffect(() => {
+    console.log("Fetching Account Info");
+    dispatch(fetchAccountInfo());
+  }, []);
+
 
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
   const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '', attribute3: '' });
@@ -56,12 +83,12 @@ const TransferUI = () => {
     setActiveTab(tab);
   };
 
-  const [formData, setFormData] = useState(null);
+  const [formData, setFormData] = useState<any>(null);
 
   const form = useForm({
     resolver: zodResolver(TransferSchema),
     defaultValues: {
-      transferFrom: "John Paul - 2222222222222222",
+      transferFrom: "",
       transferTo: "",
       amount: "",
       purpose: "",
@@ -69,10 +96,28 @@ const TransferUI = () => {
     },
   });
 
+  const { reset } = form;
+
+  useEffect(() => {
+    if (accountInfo.name && accountInfo.account_number) {
+      reset({
+        transferFrom: `${accountInfo.name} - ${accountInfo.account_number}`,
+        transferTo: "",
+        amount: "",
+        purpose: "",
+        feePayer: "",
+      });
+    }
+  }, [accountInfo, reset]);
+
+  useEffect(() => {
+    const date = timeStampHelper.formatTimestamp(accountInfo.created_at || "");
+  }, [name])
+
   const formInterBank = useForm({
     resolver: zodResolver(TransferInterBankSchema),
     defaultValues: {
-      transferFrom: "John Paul - 2222222222222222",
+      transferFrom: `${accountInfo.name} - ${accountInfo.account_number}`,
       toBank: "",
       transferTo: "",
       amount: "",
@@ -81,12 +126,60 @@ const TransferUI = () => {
     },
   });
 
-  function onSubmitInterBankOTP(data: any) {
-    console.log("Form Submitted otp inter bank:", data);
+
+  const formOtpSameBank = useForm({
+    resolver: zodResolver(OtpFormSchemaSameBank),
+    defaultValues: {
+      own_account_number: "",
+      otp: "",
+      target: {
+        account_number: "",
+        name: "",
+      },
+      payment_method: "Sender Pay",
+      amount: 0,
+      remarks: "",
+    },
+  });
+
+  function onSubmitSameBank(data: any) {
+    const [transferFromName, ownAccountNumber] = data.transferFrom.split(" - ");
+    const [targetName, targetAccountNumber] = data.transferTo.split(" - ");
+
+    // Cập nhật giá trị cho formOtpSameBank
+    formOtpSameBank.setValue("own_account_number", ownAccountNumber);
+    formOtpSameBank.setValue("otp", ""); // OTP sẽ được nhập trong bước sau
+    formOtpSameBank.setValue("target.account_number", targetAccountNumber);
+    formOtpSameBank.setValue("target.name", targetName);
+    formOtpSameBank.setValue("payment_method", data.feePayer);
+    formOtpSameBank.setValue("amount", parseFloat(data.amount)); // Đảm bảo là số
+    formOtpSameBank.setValue("remarks", data.purpose);
+
+    // Debug để kiểm tra dữ liệu được cập nhật
+    console.log("Updated formOtpSameBank:", formOtpSameBank.getValues());
+
+    setActiveStep("otp");
+
+    dispatch(sendOtpTransactionSameBank(data))
+      .unwrap()
+      .then((response: any) => {
+        console.log("Transaction created successfully:", response);
+      })
+      .catch((error) => {
+        console.error("Error creating transaction:", error);
+      });
   }
 
   function onSubmitSameBankOTP(data: any) {
-    console.log("Form Submitted otp same bamk", data);
+    dispatch(createInternalTransaction(data))
+      .unwrap()
+      .then((response: any) => {
+        console.log("Transaction created successfully:", response);
+        setActiveStep("transferSuccess");
+      })
+      .catch((error) => {
+        console.error("Error creating transaction:", error);
+      });
   }
 
   function onSubmitInterBank(data: any) {
@@ -95,38 +188,78 @@ const TransferUI = () => {
     setActiveStep("otp");
   }
 
-  function onSubmitSameBank(data: any) {
-    console.log("Form Submitted:", data);
-    setFormData(data);
-    setActiveStep("otp");
+  function onSubmitInterBankOTP(data: any) {
+    console.log("Form Submitted otp inter bank:", data);
   }
 
-  const handleTransferToInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = event.target.value.trim();
+  // const handleTransferToInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  //   const inputValue = event.target.value.trim();
 
-    if (inputValue === "") {
-      setSelectedTransferTo({ attribute1: "", attribute2: "" });
-      form.setValue("transferTo", "");
+  //   if (inputValue === "") {
+  //     setSelectedTransferTo({ attribute1: "", attribute2: "" });
+  //     form.setValue("transferTo", "");
+  //     return;
+  //   }
+
+  //   const matchedItem = accounts.find(
+  //     (item) => item.attribute2 === inputValue
+  //   );
+
+  //   if (matchedItem) {
+  //     setSelectedTransferTo(matchedItem);
+  //     form.setValue(
+  //       "transferTo",
+  //       `${matchedItem.attribute1} - ${matchedItem.attribute2}`
+  //     );
+  //   } else {
+  //     setSelectedTransferTo({ attribute1: "", attribute2: inputValue });
+  //     form.setError("transferTo", {
+  //       type: "manual",
+  //       message: "Account number is not valid.",
+  //     });
+  //   }
+  // };
+
+  const [inputValue, setInputValue] = useState<string>("");
+
+  const handleInputChangeSameBank = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    form.setValue("transferTo", "");
+    setSelectedTransferTo({ attribute1: "", attribute2: "" });
+    form.clearErrors("transferTo");
+  };
+
+
+  const handleFetchTargetDataSameBank = () => {
+    if (!inputValue.trim()) {
       return;
     }
+    const transferFrom = form.getValues("transferFrom");
 
-    const matchedItem = accounts.find(
-      (item) => item.attribute2 === inputValue
-    );
-
-    if (matchedItem) {
-      setSelectedTransferTo(matchedItem);
-      form.setValue(
-        "transferTo",
-        `${matchedItem.attribute1} - ${matchedItem.attribute2}`
-      );
-    } else {
-      setSelectedTransferTo({ attribute1: "", attribute2: inputValue });
-      form.setError("transferTo", {
-        type: "manual",
-        message: "Account number is not valid.",
+    dispatch(fetchTransactionTarget(inputValue.trim()))
+      .unwrap()
+      .then((data) => {
+        if (transferFrom && transferFrom.includes(data.account_number)) {
+          form.setError("transferTo", {
+            type: "manual",
+            message: "You cannot transfer to yourself",
+          });
+          return;
+        }
+        setSelectedTransferTo({
+          attribute1: data.name,
+          attribute2: data.account_number,
+        });
+        form.setValue("transferTo", `${data.name} - ${data.account_number}`);
+        console.log("Data: ", form.getValues("transferTo"));
+      })
+      .catch((err) => {
+        console.error("Error fetching target data:", err);
+        form.setError("transferTo", {
+          type: "manual",
+          message: "No account number found",
+        });
       });
-    }
   };
 
   const handleTransferToInputChangeInterBank = (event) => {
@@ -161,7 +294,6 @@ const TransferUI = () => {
       });
     }
   };
-
 
   const [accountNumberInput, setAccountNumberInput] = useState('');
 
@@ -279,6 +411,8 @@ const TransferUI = () => {
                             readOnly
                             className="w-full form-input bg-gray-900 text-white rounded-xl px-4 py-2 border border-gray-800 focus:outline-none cursor-not-allowed"
                             {...field}
+                            value={`${accountInfo.name} - ${accountInfo.account_number}`}
+
                           />
                         </FormControl>
                         <FormMessage className="text-red-500 text-sm" />
@@ -286,7 +420,6 @@ const TransferUI = () => {
                     )}
                   />
 
-                  {/* Transfer To */}
                   <FormField
                     control={form.control}
                     name="transferTo"
@@ -296,14 +429,39 @@ const TransferUI = () => {
                         <FormControl>
                           <div className="flex justify-between items-center space-x-3">
                             {/* Input Field */}
-                            <input
-                              type="text"
-                              placeholder="Enter account number"
-                              value={selectedTransferTo.attribute2}
-                              className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                                } focus:outline-none`}
-                              onChange={handleTransferToInputChange}
-                            />
+                            <div className={`relative w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${error ? "border-red-500" : "border-gray-800"
+                              } focus:outline-none`}>
+                              <input
+                                type="text"
+                                placeholder="Enter account number"
+                                value={inputValue}
+                                className={`w-full bg-gray-900 text-white rounded-xl focus:outline-none`}
+                                onChange={handleInputChangeSameBank}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleFetchTargetDataSameBank();
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleFetchTargetDataSameBank}
+                                className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white focus:outline-none"
+                              >
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  className="h-5 w-5"
+                                  fill="none"
+                                  viewBox="0 0 24 24"
+                                  stroke="currentColor"
+                                >
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M5 12h14M12 5l7 7-7 7"
+                                  />
+                                </svg>
+                              </button>
+                            </div>
 
                             {/* Dropdown Menu */}
                             <div className="w-1/2 relative">
@@ -510,57 +668,68 @@ const TransferUI = () => {
                   </Button>
                 </form>
               </Form>
-            ) : (
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmitSameBankOTP)} className="w-full space-y-6">
+            ) : activeStep === "otp" ? (
+
+              <Form {...formOtpSameBank}>
+                <form onSubmit={formOtpSameBank.handleSubmit(onSubmitSameBankOTP)} className="w-full space-y-6">
                   <div className="mt-6">
-                    <h3 className="text-white text-lg text-center font-bold mb-4">Confirm Transfer</h3>
+                    <h3 className="text-white text-lg text-center font-bold mb-4">Enter OTP</h3>
+
+                    {/* Source Account */}
                     <div className="mb-4 flex justify-between">
-                      <p className="text-gray-400">Transfer From:</p>
-                      <p className="text-white font-bold">{formData?.transferFrom}</p>
+                      <p className="text-gray-400">Source Account:</p>
+                      <p className="text-white font-bold">{formOtpSameBank.getValues("own_account_number")}</p>
                     </div>
 
+                    {/* Beneficiary Account */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Transfer To:</p>
-                      <p className="text-white font-bold">{formData?.transferTo}</p>
+                      <p className="text-white font-bold">
+                        {formOtpSameBank.getValues("target").name} - {formOtpSameBank.getValues("target").account_number}
+                      </p>
                     </div>
 
+                    {/* Amount */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Amount:</p>
-                      <p className="text-white font-bold">{formData?.amount} VND</p>
+                      <p className="text-white font-bold">{formOtpSameBank.getValues("amount")} VND</p>
                     </div>
 
+                    {/* Remarks */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Purpose:</p>
-                      <p className="text-white font-bold">{formData?.purpose}</p>
+                      <p className="text-white font-bold">{formOtpSameBank.getValues("remarks")}</p>
                     </div>
 
+                    {/* Payment Method */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Fee Payer:</p>
-                      <p className="text-white font-bold">{formData?.feePayer}</p>
+                      <p className="text-white font-bold">{formOtpSameBank.getValues("payment_method")}</p>
                     </div>
 
-                    {/* Nhập OTP */}
+                    {/* OTP Input */}
                     <FormField
-                      control={form.control}
+                      control={formOtpSameBank.control}
                       name="otp"
-                      render={({ field }) => (
+                      render={({ field, fieldState }) => (
                         <FormItem>
                           <FormControl>
                             <Input
                               type="text"
                               placeholder="Enter OTP"
                               {...field}
-                              className="w-full py-5 px-6 bg-white text-black text-lg rounded-xl border border-gray-800 focus:outline-none"
+                              className={`w-full py-5 px-6 bg-white text-black text-lg rounded-xl border ${fieldState.error ? "border-red-500" : "border-gray-800"
+                                } focus:outline-none`}
                             />
                           </FormControl>
-                          <FormMessage className="text-red-500 text-sm" />
+                          {fieldState.error && (
+                            <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                          )}
                         </FormItem>
                       )}
                     />
 
-
-                    {/* Nút Verify */}
+                    {/* Submit Button */}
                     <Button
                       type="submit"
                       className="mt-4 w-full py-3 bg-blue-500 text-white font-bold rounded-full"
@@ -568,10 +737,56 @@ const TransferUI = () => {
                       Verify
                     </Button>
                   </div>
-
                 </form>
-              </Form>
-            ))
+              </Form>)
+              :
+              (
+                <div className="text-center">
+                  <div className="flex flex-col items-center space-y-4">
+                    {/* Icon Success */}
+                    <div className="bg-green-500 p-4 rounded-full">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-8 w-8 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    </div>
+
+                    {/* Message */}
+                    <h2 className="text-xl font-bold text-green-500">Transfer Successful!</h2>
+                    <p className="text-2xl font-bold text-white">{formOtpSameBank.getValues("amount")} VND</p>
+                    <p className="text-gray-400">{new Date().toLocaleTimeString()} - {new Date().toLocaleDateString()}</p>
+
+                    {/* Account Details */}
+                    <div className="text-white">
+                      <p className="font-bold">{formOtpSameBank.getValues("target").account_number} - {formOtpSameBank.getValues("target").name}</p>
+                      <p className="text-gray-400">{formOtpSameBank.getValues("remarks")}</p>
+                    </div>
+
+                    {/* Button */}
+                    <button
+                      onClick={() => {
+                        setActiveStep("transfer"); // Reset về bước đầu
+                        form.reset(); // Reset form transfer
+                        formOtpSameBank.reset(); // Reset form OTP
+                      }}
+                      className="mt-6 py-3 px-6 bg-[#B9FF66] text-black font-bold rounded-full"
+                    >
+                      New Transaction
+                    </button>
+                  </div>
+                </div>
+              )
+          )
             : (
               activeStep === "transfer" ? (
                 <Form {...formInterBank}>
@@ -759,7 +974,7 @@ const TransferUI = () => {
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               </div>
-                            
+
                             </div>
                           </FormControl>
 
@@ -1100,21 +1315,21 @@ const TransferUI = () => {
           <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
             <p className="font-bold mb-4">My Card</p>
             <div className="bg-gradient-to-br from-green-400 to-blue-300 rounded-3xl p-8 justify-between relative shadow-md mb-4">
-              <div className="text-black font-medium mb-6">Lora Lewis</div>
+              <div className="text-black font-medium mb-6">{accountInfo.name}</div>
 
               <div className="text-black text-lg tracking-widest space-y-1 mb-6">
-                <p>1234 5678 0102 2937</p>
+                <p>{accountInfo.account_number}</p>
               </div>
 
               <div className="flex justify-between items-end">
-                <div className="text-black text-sm">Lora Lewis</div>
-                <div className="text-black text-sm">02/2024</div>
+                <div className="text-black text-sm">{accountInfo.name}</div>
+                <div className="text-black text-sm">{timeStampHelper.formatToMonthYear(accountInfo.created_at || "")}</div>
               </div>
 
               <div className="absolute top-5 right-5 text-black font-bold text-lg">VISA</div>
             </div>
             <p className="font-bold mb-2">Card Balance</p>
-            <h2 className="text-2xl font-bold">$15,595.015</h2>
+            <h2 className="text-2xl font-bold">{currencyHelper.convertToCurrency(accountInfo.account_balance)}</h2>
           </div>
         </div>
         <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)]">
@@ -1137,6 +1352,7 @@ const TransferUI = () => {
                 <p className="text-gray-500 text-sm">1234567890122937</p>
               </div>
             </div>
+            {/* Repeat for other beneficiaries */}
           </div>
           <div className="flex flex-wrap bg-transparent rounded-2xl p-2 mb-2 hover:bg-blue-300/20 transition-all duration-200">
             <div className="flex items-center w-1/2">
@@ -1146,6 +1362,7 @@ const TransferUI = () => {
                 <p className="text-gray-500 text-sm">1234567890122937</p>
               </div>
             </div>
+            {/* Repeat for other beneficiaries */}
           </div>
         </div>
       </div>

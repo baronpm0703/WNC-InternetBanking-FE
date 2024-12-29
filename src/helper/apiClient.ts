@@ -59,15 +59,12 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (err) {
         console.log("Refresh token failed: ", err);
-        // Redirect to login page if refresh fails
         window.location.href = "/"; // Navigate to login page
         localStorage.removeItem("token");
         return Promise.reject(err);
       }
     }
     console.log("Error: ", error);
-    localStorage.removeItem("token");
-    window.location.href = "/"; // Navigate to login page
     return Promise.reject(error);
   }
 );
