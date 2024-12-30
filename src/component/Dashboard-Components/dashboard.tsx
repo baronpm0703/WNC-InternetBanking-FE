@@ -268,7 +268,7 @@ const DashboardUI = () => {
               <div className="text-black font-medium mb-6">{accountInfo.name}</div>
 
               <div className="text-black text-lg tracking-widest space-y-1 mb-6">
-                <p>1234 5678 0102 2937</p>
+                <p>{accountInfo.account_number}</p>
               </div>
 
               <div className="flex justify-between items-end">

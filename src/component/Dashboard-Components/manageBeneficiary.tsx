@@ -229,7 +229,7 @@ const ManageBeneficiaryUI = () => {
             .then((response: any) => {
                 console.log("Beneficiary saved successfully:", response);
     
-                toast.success("Beneficiary saved successfully!", {});
+                toast.success("Beneficiary saved successfully!");
     
                 dispatch(fetchRecipients())
                     .unwrap()
@@ -565,6 +565,7 @@ const ManageBeneficiaryUI = () => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
+
                 </div>
             </div>
 
