@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "../Resusable/dataTable";
-import { customerAccountColumns, customerAccounts, debtColumns, inDebts } from "../Resusable/columns";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { customerAccountColumns } from "../Resusable/columns";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { interactDialog, openDialog } from "@/libs/slices/sliceTask";
@@ -11,6 +11,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import AccountForm from "./accountForm";
 import converTypeHelper from "@/helpers/convertTypeHelper";
+import { toast } from "react-toastify";
+import { fetchCustomerAccount } from "@/libs/slices/sliceAccount";
 
 interface ICommandProps {
   value: string; label: string
@@ -21,10 +23,9 @@ const commands: ICommandProps[] = [
 ]
 
 const CustomerAccountUI = () => {
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { isOpenDialog } = useAppSelector(state => state.task);
-  const { customerAccount } = useAppSelector(state => state.account);
+  const { customerAccount, statusCreateCusAccount, createError } = useAppSelector(state => state.account);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -48,6 +49,15 @@ const CustomerAccountUI = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [open]);
+
+  useEffect(() => {
+    if (statusCreateCusAccount === "Success") {
+      toast.success("Create customer account successfully");
+      dispatch(fetchCustomerAccount());
+    } else if (statusCreateCusAccount === "Failed") {
+      toast.error(createError);
+    }
+  }, [statusCreateCusAccount])
   return (
     <div className="text-white font-sans flex">
       <div className="flex-1 rounded-3xl">

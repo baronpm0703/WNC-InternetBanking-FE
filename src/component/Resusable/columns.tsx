@@ -4,7 +4,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAppDispatch } from "@/libs/hooks";
 import { selectCustomer, selectCustomerById } from "@/libs/slices/sliceAccount";
-import { openDialog } from "@/libs/slices/sliceTask";
+import { openDetailDialog, openDialog } from "@/libs/slices/sliceTask";
+import { selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
 import { set } from "lodash";
@@ -52,6 +53,7 @@ export type customerAccount = {
   identity: Identity,
   date: string,
   email: string,
+  phone: string,
   accountNumber: string,
   accountBalance: number
 }
@@ -423,8 +425,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
       const dispatch = useAppDispatch();
       const transaction = row.original; // Access Data's row
       const handleDetail = () => {
-        console.log("Click detail", transaction.id);
-        // dispatch(openDialog());
+        console.log("Click detail", transaction);
+        dispatch(openDetailDialog());
+        dispatch(selectTransaction(transaction));
       }
       return (
         <Button variant="ghost" className=" px-5 border rounded-3xl" onClick={handleDetail}>
@@ -435,67 +438,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   }
 ]
 
-export const customerAccounts: customerAccount[] = [
-  {
-    id: "728ed52f",
-    identity: {
-      name: "Nguyen Van A",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits"
-    },
-    date: "Apr 20, 9:30 AM",
-    email: "email@gmail.com",
-    accountNumber: "123456789",
-    accountBalance: 100.3
-  },
-  {
-    id: "489e1d42",
-    identity: {
-      name: "Nguyen Van B",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits"
-    },
-    date: "Apr 20, 9:30 AM",
-    email: "email@gmail.com",
-    accountNumber: "123456789",
-    accountBalance: 125.5
-  },
-  {
-    id: "7d8e1d42",
-    identity: {
-      name: "Nguyen Van C",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits"
-    },
-    date: "Apr 20, 9:30 AM",
-    email: "email@gmail.com",
-    accountNumber: "123456789",
-    accountBalance: 125.5
-  }
-]
-
 export const customerAccountColumns: ColumnDef<customerAccount>[] = [
-  {
-    accessorKey: "select",
-    header: ({ table }) => (
-      <Checkbox
-        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(checked) => table.toggleAllPageRowsSelected(!!checked)}
-        aria-label="Select all rows"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
-        checked={row.getIsSelected()}
-        onCheckedChange={(checked) => row.toggleSelected(!!checked)}
-        aria-label="Select this row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false
-  },
   {
     accessorKey: "identity",
     header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
@@ -514,6 +457,10 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   {
     accessorKey: "email",
     header: () => <p className="text-left text-[#E0FFBC]">Email</p>,
+  },
+  {
+    accessorKey: "phone",
+    header: () => <p className="text-left text-[#E0FFBC]">Phone</p>,
   },
   {
     accessorKey: "accountNumber",

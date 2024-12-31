@@ -7,25 +7,37 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
+import { useAppDispatch } from "@/libs/hooks";
+import { interactDialog } from "@/libs/slices/sliceTask";
+import { CreateAccountType, employeeCreateAccount } from "@/libs/slices/sliceAccount";
 const FormSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address." }),
-  fullname: z.string().min(5, { message: "Fullname must be at least 5 characters long." }),
+  name: z.string().min(5, { message: "Fullname must be at least 5 characters long." }),
   phone: z.string().min(10, { message: "Phone number must be at least 10 characters long." }),
   password: z.string().min(3, { message: "Password must be at least 3 characters long." }),
 })
 const AccountForm: React.FC<{}> = () => {
+  const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
       email: "",
-      fullname: "",
+      name: "",
       phone: "",
       password: "",
     },
   });
   function onSubmit(data: z.infer<typeof FormSchema>) {
     toast.success("Submit completed");
+    dispatch(interactDialog(false));
+    console.log("Create Account: ", data);
+    let payload: CreateAccountType = {
+      ...data,
+      role: "Customer",
+      username: data.email,
+    }
+    dispatch(employeeCreateAccount(payload));
   }
   return (
     <Form {...form}>
@@ -51,7 +63,7 @@ const AccountForm: React.FC<{}> = () => {
         {/* Fullname Field */}
         <FormField
           control={form.control}
-          name="fullname"
+          name="name"
           render={({ field }) => (
             <FormItem>
               <FormMessage className="text-red-500 text-sm px-6" />

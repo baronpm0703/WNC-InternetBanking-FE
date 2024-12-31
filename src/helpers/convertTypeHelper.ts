@@ -10,6 +10,7 @@ const converTypeHelper = {
       const random = Math.floor(Math.random() * 100);
       return {
         id: index.toString(),
+        phone: item.phone,
         identity: {
           name: item.name,
           phone: random.toString(),
@@ -46,11 +47,12 @@ const converTypeHelper = {
         }
       } else receiveCount ++;
       return {
+        ...item,
         id: index.toString(),
         status,
+        transaction_date: timeStampHelper.formatTimestamp(item.transaction_date),
         identity,
         bankInfo,
-        ...item
       }
     })
     console.log("Account ", selectedAccountNumber, "have send", senderCount, " have receive: ", receiveCount)

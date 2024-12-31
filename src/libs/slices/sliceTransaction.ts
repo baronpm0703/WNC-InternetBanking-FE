@@ -1,3 +1,4 @@
+import { Transaction } from "@/component/Resusable/columns";
 import apiClient from "@/helper/apiClient";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
@@ -33,11 +34,13 @@ export type TransactionRecord = {
     transaction_date: string
     isInterbank_transaction: boolean
     remarks: string
+    bankInfo?: any
 }
 
 export type TransactionState = {
     error: string | null
     transactions: TransactionRecord[]
+    selectedTransaction?: Transaction | null
     loading: boolean
 }
 
@@ -45,6 +48,11 @@ const initialState: TransactionState = {
     transactions: [],
     error: null,
     loading: false
+}
+
+export interface slicePayload<T> {
+    payload: T;
+    type: string;
 }
 
 export const fetchAccountTransaction = createAsyncThunk(
@@ -74,7 +82,7 @@ export const fetchAccountTransaction = createAsyncThunk(
                                 params: { account_number: sender_number },
                             })
                             : Promise.resolve({
-                                data: {target_data: { name: "Bank Employee Depositor", account_number: "employee_placeholder" }} ,
+                                data: { target_data: { name: "Bank Employee Depositor", account_number: "employee_placeholder" } },
                             });
 
                     // Resolve both promises concurrently
@@ -103,6 +111,13 @@ export const sliceTransaction = createSlice({
     initialState,
     name: "transaction",
     reducers: {
+        selectTransaction: (state, action: slicePayload<Transaction>) => {
+            state.selectedTransaction = action.payload || null;
+        },
+        resetSelected: (state) => {
+            state.selectedTransaction = null;
+            state.error = ""
+        }
     },
     extraReducers: (builder) => {
         builder
@@ -125,5 +140,5 @@ export const sliceTransaction = createSlice({
     }
 })
 
-export const { } = sliceTransaction.actions;
+export const { selectTransaction, resetSelected } = sliceTransaction.actions;
 export const transactionReducer = sliceTransaction.reducer;

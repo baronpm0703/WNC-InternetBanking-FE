@@ -14,6 +14,7 @@ export type AccountInfo = {
   account_balance: number
   account_number: string
   created_at?: string
+  phone: string
   role: string
 }
 
@@ -24,12 +25,23 @@ export type Account = {
   depositSuccess?: boolean
   loading?: boolean
   employeeAccount?: AccountInfo[]
+  statusCreateCusAccount?: "Pending" | "Success" | "Failed"
+  createError?: string
   error: string | null
 }
 
+export type CreateAccountType = {
+  role: string,
+  username: string,
+  password: string
+  email: string,
+  phone: string,
+  name: string
+}
+
 const initialState: Account = {
-  accountInfo: { name: "", email: "", account_balance: 0, account_number: "", role: "Customer" },
-  error: null
+  accountInfo: { name: "", email: "", account_balance: 0, account_number: "", role: "Customer", phone: "" },
+  error: null,
 }
 export interface slicePayload<T> {
   payload: T;
@@ -78,6 +90,24 @@ export const depositCustomer = createAsyncThunk(
       return response.data; // Axios automatically parses JSON
     } catch (error: any) {
       console.error("Deposit error: ",error);
+      return rejectWithValue(
+        error.response?.data || "An unexpected error occurred"
+    );
+    }
+  }
+)
+
+export const employeeCreateAccount = createAsyncThunk(
+  "employee/createAccount",
+  async (data: CreateAccountType, {rejectWithValue}) => {
+    try {
+      console.log("Create account data: ", data);
+      const response = await apiClient.post("employee/create-customer-account", data);
+      if (response.status === 200) {
+        return true;
+      }
+    } catch (error: any) {
+      console.error("Create customer account error: ",error);
       return rejectWithValue(
         error.response?.data || "An unexpected error occurred"
     );
@@ -152,6 +182,17 @@ export const sliceAccount = createSlice({
         state.loading = false;
         state.depositSuccess = false;
         console.error("Deposit error: ", action.payload);
+      })
+      .addCase(employeeCreateAccount.pending, (state) => {
+        state.statusCreateCusAccount = "Pending";
+      })
+      .addCase(employeeCreateAccount.fulfilled, (state) => {
+        state.statusCreateCusAccount = "Success";
+      })
+      .addCase(employeeCreateAccount.rejected, (state, action) => {
+        state.statusCreateCusAccount = "Failed";
+        state.createError = action.payload as string;
+        console.error("Create customer account error: ", action.payload);
       })
   },
 })
