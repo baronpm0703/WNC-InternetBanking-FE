@@ -3,9 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { useAppDispatch } from "@/libs/hooks";
+import { selectCustomer, selectCustomerById } from "@/libs/slices/sliceAccount";
 import { openDialog } from "@/libs/slices/sliceTask";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
+import { set } from "lodash";
 import { MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,20 +25,35 @@ export type Identity = {
 }
 
 export type Transaction = {
-  id: string,
   identity: Identity,
-  date: string,
-  amount: number,
-  transactionID: string,
   status: "Received" | "Transfered"
+  id: string
+  transactionID: string
+  bankInfo: string
+  bank_sender_id: string
+  bank_recipient_id: string
+  sender_info: {
+    account_number: string
+    name: string
+  }
+  recipient_info: {
+    account_number: string
+    name: string
+  }
+  payment_method: "Sender Pay" | "Recipient Pay"
+  amount: number
+  transaction_date: string
+  isInterbank_transaction: boolean
+  remarks: string
 }
 
 export type customerAccount = {
   id: string,
   identity: Identity,
   date: string,
-  email: number,
+  email: string,
   accountNumber: string,
+  accountBalance: number
 }
 
 export type Debt = {
@@ -300,22 +317,24 @@ export const transactionHistory: Transaction[] = [
       phone: "0123456789",
       avt: "https://randomuser.me/api/portraits/med/men/75.jpg"
     },
-    date: "Apr 20, 9:30 AM",
+    bank_recipient_id: "123456789",
+    bank_sender_id: "123456789",
+    sender_info: {
+      account_number: "123456789",
+      name: "Nguyen Van A"
+    },
+    bankInfo: "IBP",
+    recipient_info: {
+      account_number: "123456789",
+      name: "Nguyen Van B"
+    },
+    payment_method: "Sender Pay",
+    isInterbank_transaction: false,
+    remarks: "Transfer",
+    transaction_date: "Apr 20, 9:30 AM",
     transactionID: "xaa12",
     amount: 100.3,
     status: "Received"
-  },
-  {
-    id: "489e1d42",
-    identity: {
-      name: "Nguyen Van B",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/76.jpg"
-    },
-    date: "Apr 20, 9:30 AM",
-    transactionID: "xaa12",
-    amount: 125.5,
-    status: "Transfered"
   },
 ]
 
@@ -358,11 +377,19 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   },
   {
     accessorKey: "date",
-    header: () => <p className="text-left text-[#E0FFBC]">Date</p>,
+    header: () => <p className="text-left text-[#E0FFBC]">Transaction Date</p>,
+    cell: ({ row }) => {
+      const date = row.original.transaction_date;
+      return <div className="text-left font-medium">{date}</div>
+    }
   },
   {
-    accessorKey: "transactionID",
-    header: () => <p className="text-left text-[#E0FFBC]">Transaction ID</p>,
+    accessorKey: "bankInfo",
+    header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
+  },
+  {
+    accessorKey: "payment_method",
+    header: () => <p className="text-left text-[#E0FFBC]">Payment Method</p>,
   },
   {
     accessorKey: "amount",
@@ -417,8 +444,9 @@ export const customerAccounts: customerAccount[] = [
       avt: "https://randomuser.me/api/portraits"
     },
     date: "Apr 20, 9:30 AM",
-    email: 100.3,
-    accountNumber: "123456789"
+    email: "email@gmail.com",
+    accountNumber: "123456789",
+    accountBalance: 100.3
   },
   {
     id: "489e1d42",
@@ -428,8 +456,9 @@ export const customerAccounts: customerAccount[] = [
       avt: "https://randomuser.me/api/portraits"
     },
     date: "Apr 20, 9:30 AM",
-    email: 125.5,
-    accountNumber: "123456789"
+    email: "email@gmail.com",
+    accountNumber: "123456789",
+    accountBalance: 125.5
   },
   {
     id: "7d8e1d42",
@@ -439,8 +468,9 @@ export const customerAccounts: customerAccount[] = [
       avt: "https://randomuser.me/api/portraits"
     },
     date: "Apr 20, 9:30 AM",
-    email: 125.5,
-    accountNumber: "123456789"
+    email: "email@gmail.com",
+    accountNumber: "123456789",
+    accountBalance: 125.5
   }
 ]
 
@@ -500,11 +530,12 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
       const debt = row.original; // Access Data's row
       const navigate = useNavigate();
       const handleDeposit = () => {
-        console.log("Deposit debt", debt.id);
+        console.log("Deposit debt", debt);
+        dispatch(selectCustomerById(parseInt(debt.id)));
         navigate("/dashboard/deposit-money")
       }
       const handleViewTransaction = () => {
-        dispatch(openDialog());
+        dispatch(selectCustomerById(parseInt(debt.id)));
         navigate("/dashboard/customer-transactions-history")
       }
       return (

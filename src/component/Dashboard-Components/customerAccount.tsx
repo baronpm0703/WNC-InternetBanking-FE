@@ -10,6 +10,7 @@ import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faPlus } from "@fortawesome/free-solid-svg-icons";
 import AccountForm from "./accountForm";
+import converTypeHelper from "@/helpers/convertTypeHelper";
 
 interface ICommandProps {
   value: string; label: string
@@ -23,6 +24,7 @@ const CustomerAccountUI = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { isOpenDialog } = useAppSelector(state => state.task);
+  const { customerAccount } = useAppSelector(state => state.account);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
@@ -79,7 +81,7 @@ const CustomerAccountUI = () => {
         </div>
         {/* Customer table */}
         <div className="container-xl sm:container-sm mx-auto py-5">
-          <DataTable columns={customerAccountColumns} data={customerAccounts} />
+          <DataTable columns={customerAccountColumns} data={converTypeHelper.convertToCustomerAccountColumns(customerAccount)} />
           {/* Dialog Create Account */}
           <Dialog open={isOpenDialog} onOpenChange={(data) => {
             console.log(data);

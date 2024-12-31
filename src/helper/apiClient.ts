@@ -15,7 +15,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   async (config) => {
     const state = root.getState();
-    const token: AuthToken | null =  state.auth.token;
+    const token: AuthToken | null = state.auth.token;
     if (token?.access_token) {
       config.headers["Authorization"] = `Bearer ${token.access_token}`;
     }
@@ -32,7 +32,7 @@ apiClient.interceptors.response.use(
     const state = root.getState();
     const localToken = localStorage.getItem("token");
     const token: AuthToken | null = state.auth.token ? state.auth.token : localToken ? JSON.parse(localToken) : null;
-    console.log("AccessToken expired: ", token);
+    if (error.response?.status === 401) console.log("AccessToken expired: ", token);
     // Check if error is due to token expiration
     if (
       error.response?.status === 401 &&
@@ -44,7 +44,7 @@ apiClient.interceptors.response.use(
       // Attempt to refresh the token
       try {
         const refreshToken = token.refresh_token;
-        const response = await axios.post(`${destination_server}/accounts/refresh-auth`,{}, {
+        const response = await axios.post(`${destination_server}/accounts/refresh-auth`, {}, {
           headers: {
             Authorization: `Bearer ${refreshToken}`
           }
@@ -66,8 +66,6 @@ apiClient.interceptors.response.use(
       }
     }
     console.log("Error: ", error);
-    localStorage.removeItem("token");
-    window.location.href = "/"; // Navigate to login page
     return Promise.reject(error);
   }
 );
