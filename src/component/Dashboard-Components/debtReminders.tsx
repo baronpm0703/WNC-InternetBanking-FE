@@ -16,16 +16,18 @@ import {
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { set, useForm } from "react-hook-form";
 import { z } from "zod";
+import { createDebtRemind, fetchTransactionTarget } from "@/libs/slices/sliceAccount";
+import { toast } from "react-toastify";
 
 const TransferSchema = z.object({
-  transferTo: z.string().nonempty({ message: "Please select a beneficiary account." }),
+  account_number: z.string().nonempty({ message: "Please select a beneficiary account." }),
   amount: z
     .string()
     .nonempty({ message: "Amount is required." })
     .regex(/^\d+(\.\d{1,2})?$/, { message: "Please enter a valid amount." }),
-  purpose: z.string().nonempty({ message: "Purpose is required." }),
+  detail: z.string().nonempty({ message: "Details is required." }),
 });
 
 
@@ -35,54 +37,80 @@ const DebtReminderUI = () => {
   const { isOpenDialog } = useAppSelector(state => state.task);
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
   const [searchQuery, setSearchQuery] = useState("");
+  const { error, accountInfo } = useAppSelector(state => state.account);
+  const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
 
-  const accounts = [
-    { attribute1: "NGUYEN LAM HAI", attribute2: "123456" },
-    { attribute1: "PHAN THAI KHANG", attribute2: "22222" },
-    { attribute1: "NGUYEN PHU MINH BAO", attribute2: "233434" },
-    { attribute1: "NGUYEN ANH KHOA", attribute2: "35667" },
-  ];
-
-  const form = useForm({
+  const debtRemindForm = useForm({
     resolver: zodResolver(TransferSchema),
     defaultValues: {
-      transferFrom: "John Paul - 2222222222222222",
-      transferTo: "",
+      account_number: "",
       amount: "",
-      purpose: "",
+      detail: "",
     },
   });
 
-  function onSubmitSameBank(data: any) {
-    console.log("Form Submitted:", data);
-  }
+  const [inputValue, setInputValue] = useState<string>("");
 
-  const handleTransferToInputChange = (event) => {
-    const inputValue = event.target.value.trim();
+  const handleInputChangeSameBank = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    debtRemindForm.setValue("account_number", "");
+    setSelectedTransferTo({ attribute1: "", attribute2: "" });
+    debtRemindForm.clearErrors("account_number");
+  };
 
-    if (inputValue === "") {
-      setSelectedTransferTo({ attribute1: "", attribute2: "" });
-      form.setValue("transferTo", "");
+  const handleFetchTargetDataSameBank = () => {
+    if (!inputValue.trim()) {
       return;
     }
 
-    const matchedItem = accounts.find(
-      (item) => item.attribute2 === inputValue
-    );
+    const accountNumber = accountInfo.account_number;
 
-    if (matchedItem) {
-      setSelectedTransferTo(matchedItem);
-      form.setValue(
-        "transferTo",
-        `${matchedItem.attribute1} - ${matchedItem.attribute2}`
-      );
-    } else {
-      setSelectedTransferTo({ attribute1: "", attribute2: inputValue });
-      form.setError("transferTo", {
+    if (accountNumber && accountNumber === inputValue.trim()) {
+      debtRemindForm.setError("account_number", {
         type: "manual",
-        message: "Account number is not valid.",
+        message: "You cannot save yourself as your Beneficiary",
       });
+      return;
     }
+
+    dispatch(fetchTransactionTarget(inputValue.trim()))
+      .unwrap()
+      .then((data) => {
+        if (accountNumber && accountNumber === data.account_number) {
+          debtRemindForm.setError("account_number", {
+            type: "manual",
+            message: "You cannot save yourself as your Beneficiary",
+          });
+          return;
+        }
+        setSelectedTransferTo({
+          attribute1: data.name,
+          attribute2: data.account_number,
+        });
+        debtRemindForm.setValue("account_number", data.account_number);
+        console.log("account number", debtRemindForm.getValues("account_number"))
+      })
+      .catch((err) => {
+        console.error("Error fetching target data:", err);
+        debtRemindForm.setError("account_number", {
+          type: "manual",
+          message: "No account number found",
+        });
+      });
+  };
+
+  const onSubmitDebtReminder = (data: { account_number: string; amount: string; details: string }) => {
+    dispatch(createDebtRemind(data))
+      .unwrap()
+      .then(() => {
+        console.log("data debt remind", data)
+        debtRemindForm.reset();
+        toast.success("Debt remind created successfully!");
+      })
+      .catch((err) => {
+        console.error("Error creating debt remind:", err);
+        toast.error(err || "Failed to create debt remind.");
+      });
   };
 
   return (
@@ -95,28 +123,53 @@ const DebtReminderUI = () => {
         </div>
         <div className="bg-black p-6 rounded-3xl border border-white/20 shadow-lg overflow-y-auto pr-4" style={{ boxShadow: "0px 4px 0px white" }}>
           {
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmitSameBank)} className={`space-y-6 transition-all duration-1000 transform ${activeTab === "createReminder"
+            <Form {...debtRemindForm}>
+              <form onSubmit={debtRemindForm.handleSubmit(onSubmitDebtReminder)} className={`space-y-6 transition-all duration-1000 transform ${activeTab === "createReminder"
                 ? "opacity-100 translate-y-0 max-h-screen"
                 : "opacity-0 translate-y-[20px] max-h-0 overflow-hidden"
                 }`}>
                 <FormField
-                  control={form.control}
-                  name="transferTo"
+                  control={debtRemindForm.control}
+                  name="account_number"
                   render={({ field, fieldState }) => (
                     <FormItem>
                       <label className="block text-white text-sm mb-2">Remind To</label>
                       <FormControl>
                         <div className="flex justify-between items-center space-x-3">
                           {/* Input Field */}
-                          <input
-                            type="text"
-                            placeholder="Enter account number"
-                            value={selectedTransferTo.attribute2}
-                            className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                              } focus:outline-none`}
-                            onChange={handleTransferToInputChange}
-                          />
+                          <div className={`relative w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${error ? "border-red-500" : "border-gray-800"
+                            } focus:outline-none`}>
+                            <input
+                              type="text"
+                              placeholder="Enter account number"
+                              value={inputValue}
+                              className={`w-full bg-gray-900 text-white rounded-xl focus:outline-none`}
+                              onChange={handleInputChangeSameBank}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") handleFetchTargetDataSameBank();
+                              }}
+                            />
+                            <button
+                              type="button"
+                              onClick={handleFetchTargetDataSameBank}
+                              className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white focus:outline-none"
+                            >
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                className="h-5 w-5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 12h14M12 5l7 7-7 7"
+                                />
+                              </svg>
+                            </button>
+                          </div>
 
                           {/* Dropdown Menu */}
                           <div className="w-1/2 relative">
@@ -146,38 +199,39 @@ const DebtReminderUI = () => {
                                   />
                                 </div>
                                 <DropdownMenuSeparator />
-                                {accounts
+                                {recipients
                                   .filter((account) =>
-                                    `${account.attribute1} - ${account.attribute2}`
+                                    `${account.reminder_name} - ${account.account_number}`
                                       .toLowerCase()
                                       .includes(searchQuery.toLowerCase())
                                   )
                                   .map((account) => (
                                     <DropdownMenuItem
-                                      key={account.attribute2}
+                                      key={account.account_number}
                                       onClick={() => {
-                                        setSelectedTransferTo(account);
-                                        field.onChange(`${account.attribute1} - ${account.attribute2}`);
+                                        setSelectedTransferTo({
+                                          attribute1: account.reminder_name,
+                                          attribute2: account.account_number,
+                                        });
+                                        debtRemindForm.setValue("account_number", account.account_number);
+                                        console.log("account number", debtRemindForm.getValues("account_number"))
+                                        setInputValue(account.account_number);
                                       }}
                                       className="flex items-center justify-between px-4 py-2 space-x-4"
                                     >
-                                      {/* Avatar */}
                                       <div className="flex items-center space-x-4">
                                         <img
-                                          src="https://via.placeholder.com/40" // Thay bằng URL avatar thực tế
-                                          alt={account.attribute1}
+                                          src="https://via.placeholder.com/40" // URL avatar thực tế
+                                          alt={account.reminder_name}
                                           className="w-10 h-10 rounded-full"
                                         />
-                                        {/* Tên và số tài khoản */}
                                         <div>
-                                          <p className="text-sm font-medium text-black">{account.attribute1}</p>
-                                          <p className="text-xs font-bold text-gray-400">{account.attribute2}</p>
+                                          <p className="text-sm font-medium text-black">{account.reminder_name}</p>
+                                          <p className="text-xs font-bold text-gray-400">{account.account_number}</p>
                                         </div>
                                       </div>
-                                      {/* Mũi tên */}
                                       <span className="text-gray-400 text-sx">{'>'}</span>
                                     </DropdownMenuItem>
-
                                   ))}
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -196,7 +250,7 @@ const DebtReminderUI = () => {
                 <div className="flex space-x-4">
                   {/* Amount */}
                   <FormField
-                    control={form.control}
+                    control={debtRemindForm.control}
                     name="amount"
                     render={({ field }) => (
                       <FormItem className="flex-1">
@@ -216,15 +270,15 @@ const DebtReminderUI = () => {
 
                   {/* Purpose */}
                   <FormField
-                    control={form.control}
-                    name="purpose"
+                    control={debtRemindForm.control}
+                    name="detail"
                     render={({ field }) => (
                       <FormItem className="flex-1">
-                        <label className="block text-gray-400 text-sm mb-1">Purpose</label>
+                        <label className="block text-gray-400 text-sm mb-1">Details</label>
                         <FormControl>
                           <Input
                             type="text"
-                            placeholder="Purpose"
+                            placeholder="Details"
                             {...field}
                             className="w-full py-6 px-4 bg-gray-900 text-white rounded-xl border border-gray-800 focus:outline-none"
                           />
@@ -271,7 +325,6 @@ const DebtReminderUI = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
         </div>
       </div>
 

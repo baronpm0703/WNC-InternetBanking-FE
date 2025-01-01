@@ -1,10 +1,5 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { DataTable } from "../Resusable/dataTable";
-import { beneficiaryColumns, inBeneficiaries } from "../Resusable/columns";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { interactDialog } from "@/libs/slices/sliceTask";
 import { Button } from "@/components/ui/button";
 import {
     Form,
@@ -13,13 +8,17 @@ import {
     FormItem,
     FormMessage,
 } from "@/components/ui/form";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { EyeOffIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { EyeIcon } from "lucide-react";
+import timeStampHelper from "@/helper/convertTimeStamp";
+import currencyHelper from "@/helper/currencyHelper";
+import { toast } from "react-toastify";
+import { changePasswordWhenLoggedin, fetchAccountInfo, updateAccountInfo } from "@/libs/slices/sliceAccount";
+import { logout } from "@/libs/slices/sliceAuth";
 
 
 export const profileSchema = z.object({
@@ -32,16 +31,11 @@ export const profileSchema = z.object({
 
 export const passwordSchema = z.object({
     currentPassword: z.string().min(1, "Current password is required"),
-    newPassword: z
-        .string()
-        .min(8, "Password must be at least 8 characters long")
-        .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-        .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-        .regex(/[0-9]/, "Password must contain at least one number"),
+    newPassword: z.string().min(1, "New password is required"),
     confirmPassword: z.string().min(1, "Confirm password is required"),
 }).refine((data) => data.newPassword === data.confirmPassword, {
     message: "Passwords do not match",
-    path: ["confirmPassword"], // Path for error message
+    path: ["confirmPassword"],
 });
 
 
@@ -50,22 +44,38 @@ const ProfileUI = () => {
     const [profileImage, setProfileImage] = useState("https://via.placeholder.com/150");
     const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const { error, accountInfo } = useAppSelector(state => state.account);
+    const dispatch = useAppDispatch();
 
-    const [profileData, setProfileData] = useState({
-        name: "Alexa Rawles",
-        email: "alexarawles@gmail.com",
-        phone: "0123456789",
-    });
+    const onSubmit = (data: { name: string; email: string; phone: string }) => {
+        const updatedData = {
+            ...accountInfo,
+            ...data,
+        };
+
+        console.log("datadatadata", updatedData)
+
+        dispatch(updateAccountInfo(updatedData))
+            .unwrap()
+            .then((response) => {
+                console.log("Account updated successfully:", response);
+                dispatch(fetchAccountInfo());
+                toast.success("Account updated successfully!");
+                setIsModalOpen(false);
+            })
+            .catch((error) => {
+                console.error("Error updating account:", error);
+                toast.error("Failed to update account.");
+            });
+    };
 
     const handleEditClick = () => {
-        editProfileForm.reset(profileData);
         setIsModalOpen(true);
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
     };
-
 
     const handleImageChange = (event) => {
         const file = event.target.files[0];
@@ -81,11 +91,19 @@ const ProfileUI = () => {
     const editProfileForm = useForm({
         resolver: zodResolver(profileSchema),
         defaultValues: {
-            name: "",
-            email: "",
-            phone: "",
+            name: accountInfo.name,
+            email: accountInfo.email,
+            phone: accountInfo.phone,
         },
     });
+
+    useEffect(() => {
+        editProfileForm.reset({
+            name: accountInfo.name,
+            email: accountInfo.email,
+            phone: accountInfo.phone,
+        });
+    }, [accountInfo, editProfileForm]);
 
     const passwordForm = useForm({
         resolver: zodResolver(passwordSchema),
@@ -104,15 +122,23 @@ const ProfileUI = () => {
         setIsPasswordModalOpen(false);
     };
 
-    const onPasswordSubmit = (data) => {
-        console.log("Password Update Data:", data);
-        // Add logic for updating password here
-        setIsPasswordModalOpen(false);
-    };
+    const onPasswordSubmit = (data: { currentPassword: string; newPassword: string }) => {
+        const { currentPassword, newPassword } = data;
 
-    const onSubmit = (data) => {
-        console.log("Form Data:", data);
-        setIsModalOpen(false);
+        dispatch(changePasswordWhenLoggedin({ old_password: currentPassword, password: newPassword }))
+            .unwrap()
+            .then(() => {
+                passwordForm.reset();
+                toast.success("Your Password is changed! You need to login with your new password!", {
+                    autoClose: 5000,
+                }); setTimeout(() => {
+                    dispatch(logout());
+                }, 5000);
+            })
+            .catch((err) => {
+                console.error("Error changing password:", err);
+                toast.error(err);
+            });
     };
 
     return (
@@ -134,8 +160,8 @@ const ProfileUI = () => {
                         />
                         {/* User Info */}
                         <div>
-                            <h2 className="text-xl font-bold text-white">Alexa Rawles</h2>
-                            <p className="text-gray-400">alexarawles@gmail.com</p>
+                            <h2 className="text-xl font-bold text-white">{accountInfo.name}</h2>
+                            <p className="text-gray-400">{accountInfo.email}</p>
                         </div>
                         {/* Edit Button */}
                         <button
@@ -150,15 +176,15 @@ const ProfileUI = () => {
                     <div className="space-y-4">
                         <div className="flex justify-between">
                             <p className="text-gray-400">Full Name</p>
-                            <p className="text-white font-medium">Alexa Rawles</p>
+                            <p className="text-white font-medium">{accountInfo.name}</p>
                         </div>
                         <div className="flex justify-between">
                             <p className="text-gray-400">Email</p>
-                            <p className="text-white font-medium">alexarawles@gmail.com</p>
+                            <p className="text-white font-medium">{accountInfo.email}</p>
                         </div>
                         <div className="flex justify-between">
                             <p className="text-gray-400">Phone</p>
-                            <p className="text-white font-medium">+123 456 789</p>
+                            <p className="text-white font-medium">{accountInfo.phone}</p>
                         </div>
                     </div>
                 </div>
@@ -209,9 +235,9 @@ const ProfileUI = () => {
                             <Form {...editProfileForm}>
                                 <form
                                     onSubmit={editProfileForm.handleSubmit(onSubmit)}
-                                    className="space-y-6 transition-all duration-1000 transform"
+                                    className="space-y-6"
                                 >
-                                    {/* Full Name Field */}
+                                    {/* Full Name */}
                                     <FormField
                                         control={editProfileForm.control}
                                         name="name"
@@ -236,7 +262,7 @@ const ProfileUI = () => {
                                         )}
                                     />
 
-                                    {/* Email Field */}
+                                    {/* Email */}
                                     <FormField
                                         control={editProfileForm.control}
                                         name="email"
@@ -261,7 +287,7 @@ const ProfileUI = () => {
                                         )}
                                     />
 
-                                    {/* Phone Field */}
+                                    {/* Phone */}
                                     <FormField
                                         control={editProfileForm.control}
                                         name="phone"
@@ -286,13 +312,8 @@ const ProfileUI = () => {
                                         )}
                                     />
 
+                                    {/* Submit Button */}
                                     <div className="mt-6 flex justify-end">
-                                        <Button
-                                            onClick={handleCloseModal}
-                                            className="bg-gray-500 text-white px-4 py-2 rounded-lg mr-2 hover:bg-gray-600"
-                                        >
-                                            Cancel
-                                        </Button>
                                         <Button
                                             type="submit"
                                             className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
@@ -468,21 +489,21 @@ const ProfileUI = () => {
                     <div className="border border-white/20 bg-black p-6 rounded-3xl shadow-md shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
                         <p className="font-bold mb-4">My Card</p>
                         <div className="bg-gradient-to-br from-green-400 to-blue-300 rounded-3xl p-8 justify-between relative shadow-md mb-4">
-                            <div className="text-black font-medium mb-6">Lora Lewis</div>
+                            <div className="text-black font-medium mb-6">{accountInfo.name}</div>
 
                             <div className="text-black text-lg tracking-widest space-y-1 mb-6">
-                                <p>1234 5678 0102 2937</p>
+                                <p>{accountInfo.account_number}</p>
                             </div>
 
                             <div className="flex justify-between items-end">
-                                <div className="text-black text-sm">Lora Lewis</div>
-                                <div className="text-black text-sm">02/2024</div>
+                                <div className="text-black text-sm">{accountInfo.name}</div>
+                                <div className="text-black text-sm">{timeStampHelper.formatToMonthYear(accountInfo.created_at || "")}</div>
                             </div>
 
                             <div className="absolute top-5 right-5 text-black font-bold text-lg">VISA</div>
                         </div>
                         <p className="font-bold mb-2">Card Balance</p>
-                        <h2 className="text-2xl font-bold">$15,595.015</h2>
+                        <h2 className="text-2xl font-bold">{currencyHelper.convertToCurrency(accountInfo.account_balance)}</h2>
                     </div>
                 </div>
             </div>

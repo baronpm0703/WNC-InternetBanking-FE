@@ -18,7 +18,7 @@ import {
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { fetchTransactionTarget, saveBeneficiary } from "@/libs/slices/sliceAccount";
+import { fetchAccountInfo, fetchTransactionTarget, saveBeneficiary } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import { createInternalTransaction, sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
 import { toast } from "react-toastify";
@@ -181,6 +181,7 @@ const TransferUI = () => {
             .then((res) => {
               console.log("Beneficiary saved successfully:", res);
               toast.success("Beneficiary saved successfully!");
+              dispatch(fetchAccountInfo());
             })
             .catch((err) => {
               console.error("Failed to save beneficiary:", err);
@@ -200,6 +201,7 @@ const TransferUI = () => {
         console.log("Transaction created successfully:", response);
         toast.success("Transaction created successfully!");
         setActiveStep("transferSuccess");
+        dispatch(fetchAccountInfo());
       })
       .catch((error) => {
         console.error("Error creating transaction:", error);

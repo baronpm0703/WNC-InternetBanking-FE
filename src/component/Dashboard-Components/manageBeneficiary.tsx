@@ -80,7 +80,6 @@ const ManageBeneficiaryUI = () => {
             }
           })
         );
-  
         setInBeneficiaries(recipientsWithNames);
       };
   
@@ -229,7 +228,7 @@ const ManageBeneficiaryUI = () => {
             .then((response: any) => {
                 console.log("Beneficiary saved successfully:", response);
     
-                toast.success("Beneficiary saved successfully!", {});
+                toast.success("Beneficiary saved successfully!");
     
                 dispatch(fetchRecipients())
                     .unwrap()

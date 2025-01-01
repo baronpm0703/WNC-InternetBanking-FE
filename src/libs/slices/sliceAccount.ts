@@ -15,6 +15,7 @@ export type AccountInfo = {
   role: string  
   recipient_list?: RecipientInfo[]
   indebt_list?: string[]
+  phone: string
 }
 
 export type TransactionTarget = {
@@ -31,13 +32,64 @@ export type Account = {
 }
 
 const initialState: Account = {
-  accountInfo: { name: "", email: "", account_balance: 0, account_number: "", role: "Customer" },
+  accountInfo: { name: "", email: "", account_balance: 0, account_number: "", role: "Customer", phone: "" },
   error: null
 }
 export interface slicePayload<T> {
   payload: T;
   type: string;
 }
+
+export const createDebtRemind = createAsyncThunk(
+  "debt/create",
+  async (debtData: { account_number: string; amount: string; details: string }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post("/debt", debtData);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error creating debt remind:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to create debt remind."
+      );
+    }
+  }
+);
+
+export const updateAccountInfo = createAsyncThunk(
+  "account/updateInfor",
+  async (recipientData: { name: string; email: string; phone: string }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.put("/accounts/update-info", recipientData);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error updating recipient:", error);
+      return rejectWithValue(error.response?.data?.message || "Failed to update infor.");
+    }
+  }
+);
+
+export const changePasswordWhenLoggedin = createAsyncThunk(
+  "account/changePasswordAccount",
+  async (
+    { old_password, password }: { old_password: string; password: string },
+    { rejectWithValue }
+  ) => {
+    try {
+      console.log("Payload being sent:", { old_password, password });
+      const response = await apiClient.post(
+        "/accounts/change-password-when-logged-in",
+        { old_password, password }
+      );
+      console.log("Server Response:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("Internal Server Error Details:", error.response?.data || error.message);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to change password."
+      );
+    }
+  }
+);
 
 export const fetchAccountInfo = createAsyncThunk(
   "account/fetch",
@@ -187,8 +239,32 @@ export const sliceAccount = createSlice({
       .addCase(saveBeneficiary.rejected, (state, action) => {
         state.error = action.payload as string;
         console.error("Error saving beneficiary:", action.payload);
-      });
-      
+      })
+      .addCase(updateAccountInfo.fulfilled, (state, action: slicePayload<AccountInfo>) => {
+        console.log("Account updated successfully:", action.payload);
+        state.accountInfo = { ...state.accountInfo, ...action.payload }; // Cập nhật thông tin account
+        state.error = null;
+      })
+      .addCase(updateAccountInfo.rejected, (state, action) => {
+        state.error = action.payload as string;
+        console.error("Error updating account:", action.payload);
+      })
+      .addCase(changePasswordWhenLoggedin.fulfilled, (state) => {
+        console.log("Password changed successfully");
+        state.error = null;
+      })
+      .addCase(changePasswordWhenLoggedin.rejected, (state, action) => {
+        state.error = action.payload as string;
+        console.error("Error changing password:", action.payload);
+      })
+      .addCase(createDebtRemind.fulfilled, (state) => {
+        state.successMessage = "Debt remind created successfully!";
+        state.error = null;
+      })
+      .addCase(createDebtRemind.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.successMessage = null;
+      })
   },
 })
 
