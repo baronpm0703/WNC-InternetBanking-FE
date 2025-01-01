@@ -40,6 +40,21 @@ export interface slicePayload<T> {
   type: string;
 }
 
+export const createDebtRemind = createAsyncThunk(
+  "debt/create",
+  async (debtData: { account_number: string; amount: string; details: string }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post("/debt", debtData);
+      return response.data;
+    } catch (error: any) {
+      console.error("Error creating debt remind:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to create debt remind."
+      );
+    }
+  }
+);
+
 export const updateAccountInfo = createAsyncThunk(
   "account/updateInfor",
   async (recipientData: { name: string; email: string; phone: string }, { rejectWithValue }) => {
@@ -241,7 +256,15 @@ export const sliceAccount = createSlice({
       .addCase(changePasswordWhenLoggedin.rejected, (state, action) => {
         state.error = action.payload as string;
         console.error("Error changing password:", action.payload);
-      });
+      })
+      .addCase(createDebtRemind.fulfilled, (state) => {
+        state.successMessage = "Debt remind created successfully!";
+        state.error = null;
+      })
+      .addCase(createDebtRemind.rejected, (state, action) => {
+        state.error = action.payload as string;
+        state.successMessage = null;
+      })
   },
 })
 

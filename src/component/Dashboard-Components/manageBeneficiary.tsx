@@ -80,7 +80,6 @@ const ManageBeneficiaryUI = () => {
             }
           })
         );
-  
         setInBeneficiaries(recipientsWithNames);
       };
   
@@ -565,7 +564,6 @@ const ManageBeneficiaryUI = () => {
                             </DialogFooter>
                         </DialogContent>
                     </Dialog>
-
                 </div>
             </div>
 
