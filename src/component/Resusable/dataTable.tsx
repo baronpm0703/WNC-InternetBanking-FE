@@ -1,22 +1,32 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ColumnDef, flexRender, getCoreRowModel, getPaginationRowModel, useReactTable } from "@tanstack/react-table";
-import { useEffect, useMemo } from "react";
+import { ColumnDef, ColumnFiltersState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from "@tanstack/react-table";
+import { CalendarIcon, FilterIcon } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import Skeleton from 'react-loading-skeleton';
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   loading?: boolean;
+  filterFields?: string[];
+  filterable?: boolean;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   loading = false,
+  filterFields = [],
+  filterable = false
 }: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = useState<SortingState>([])
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
+    []
+  )
   // Prepare table data and columns
   const tableData = useMemo(
     () => (loading ? Array(5).fill({}) : data),
@@ -27,9 +37,9 @@ export function DataTable<TData, TValue>({
     () =>
       loading
         ? columns.map((column) => ({
-            ...column,
-            cell: () => <Skeleton className="h-4 w-full rounded-sm" />,
-          }))
+          ...column,
+          cell: () => <Skeleton className="h-4 w-full rounded-sm" />,
+        }))
         : columns,
     [loading, columns]
   );
@@ -39,6 +49,14 @@ export function DataTable<TData, TValue>({
     columns: tableColumns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onColumnFiltersChange: setColumnFilters,
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting,
+      columnFilters,
+    },
   });
 
   useEffect(() => {
@@ -47,6 +65,19 @@ export function DataTable<TData, TValue>({
 
   return (
     <>
+      {filterable && (
+        <div className="relative w-full max-w-sm py-4 text-black">
+          <Input
+            placeholder={`Filter ${filterFields && filterFields.length > 0 ? filterFields[0] : "email"}...`}
+            value={(table.getColumn(filterFields && filterFields.length > 0 ? filterFields[0] : "email")?.getFilterValue() as string) ?? ""}
+            onChange={(event) =>
+              table.getColumn(filterFields && filterFields.length > 0 ? filterFields[0] : "email")?.setFilterValue(event.target.value)
+            }
+            className="pr-10 pl-4 py-2 border border-gray-300 rounded-lg w-full"
+          />
+          <FilterIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+        </div>
+      )}
       <div className="rounded-md border">
         <Table>
           <TableHeader>

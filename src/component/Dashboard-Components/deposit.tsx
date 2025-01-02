@@ -1,12 +1,12 @@
 import { Button } from "@/components/ui/button";
-import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandItem, CommandList } from "@/components/ui/command";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { AccountInfo, depositCustomer, DepositInfo, resetSelected } from "@/libs/slices/sliceAccount";
-import { faCaretDown, faX } from "@fortawesome/free-solid-svg-icons";
+import { faCaretDown } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { z } from "zod";

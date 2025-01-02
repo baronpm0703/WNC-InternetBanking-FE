@@ -1,6 +1,7 @@
 import { Transaction } from "@/component/Resusable/columns";
 import apiClient from "@/helper/apiClient";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+const VITE_INTERNAlBANK_ID = import.meta.env.VITE_INTERNAlBANK_ID
 
 export const destination_server = "http://localhost:3000";
 
@@ -13,7 +14,7 @@ type TransactionByAccount = {
     payment_method: "Sender Pay" | "Recipient Pay"
     amount: number
     transaction_date: string
-    isInterbank_transaction: boolean
+    isInterBank_transaction: boolean
     remarks: string
 }
 
@@ -32,7 +33,7 @@ export type TransactionRecord = {
     payment_method: "Sender Pay" | "Recipient Pay"
     amount: number
     transaction_date: string
-    isInterbank_transaction: boolean
+    isInterBank_transaction: boolean
     remarks: string
     bankInfo?: any
 }
@@ -69,22 +70,45 @@ export const fetchAccountTransaction = createAsyncThunk(
             // Map over transactions and create promises for recipient and sender info
             const res = await Promise.all(
                 response.data.map(async (transaction: TransactionByAccount) => {
-                    const { recipient_number, sender_number, _id, ...rest } = transaction;
+                    const { isInterBank_transaction, bank_recipient_id, bank_sender_id, recipient_number, sender_number, _id, ...rest } = transaction;
 
                     // Fetch recipient and sender details
-                    const RecipientPromise = apiClient.get('accounts/transaction-target', {
-                        params: { account_number: recipient_number },
-                    });
+                    let RecipientPromise: Promise<any>;
 
-                    const SenderPromise =
-                        sender_number !== "employee_placeholder"
-                            ? apiClient.get('accounts/transaction-target', {
-                                params: { account_number: sender_number },
-                            })
-                            : Promise.resolve({
-                                data: { target_data: { name: "Bank Employee Depositor", account_number: "employee_placeholder" } },
-                            });
+                    let SenderPromise: Promise<any>;
 
+                    if (!isInterBank_transaction) {
+                        RecipientPromise = apiClient.get('accounts/transaction-target', {
+                            params: { account_number: recipient_number },
+                        });
+                        SenderPromise =
+                            sender_number !== "employee_placeholder"
+                                ? apiClient.get('accounts/transaction-target', {
+                                    params: { account_number: sender_number },
+                                })
+                                : Promise.resolve({
+                                    data: { target_data: { name: "Bank Employee Depositor", account_number: "employee_placeholder" } },
+                                });
+                    } else {
+                        RecipientPromise = bank_recipient_id != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
+                            account_number: recipient_number
+                        }, {
+                            headers: {
+                                "x-client-id": bank_recipient_id
+                            }
+                        }) : apiClient.get('accounts/transaction-target', {
+                            params: { account_number: recipient_number },
+                        });
+                        SenderPromise = bank_sender_id != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
+                            account_number: sender_number
+                        }, {
+                            headers: {
+                                "x-client-id": bank_sender_id
+                            }
+                        }) : apiClient.get('accounts/transaction-target', {
+                            params: { account_number: sender_number },
+                        })
+                    }
                     // Resolve both promises concurrently
                     const [RecipientResponse, SenderResponse] = await Promise.all([RecipientPromise, SenderPromise]);
 
@@ -92,8 +116,11 @@ export const fetchAccountTransaction = createAsyncThunk(
                     return {
                         ...rest,
                         transactionID: _id,
-                        recipient_info: RecipientResponse.data.target_data,
-                        sender_info: SenderResponse.data.target_data,
+                        isInterBank_transaction,
+                        bank_recipient_id,
+                        bank_sender_id,
+                        recipient_info: RecipientResponse.data.target_data ? RecipientResponse.data.target_data : RecipientResponse.data,
+                        sender_info: SenderResponse.data.target_data ? SenderResponse.data.target_data : SenderResponse.data,
                     };
                 })
             );

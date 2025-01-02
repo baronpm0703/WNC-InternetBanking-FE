@@ -1,20 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { DataTable } from "../Resusable/dataTable";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { transactionColumns } from "../Resusable/columns";
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { interactDetailDialog, interactDialog } from "@/libs/slices/sliceTask";
+import { interactDetailDialog } from "@/libs/slices/sliceTask";
 import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { AccountInfo, selectCustomer } from "@/libs/slices/sliceAccount";
 import converTypeHelper from "@/helpers/convertTypeHelper";
-import { fetchAccountTransaction } from "@/libs/slices/sliceTransaction";
+import { fetchAccountTransaction, TransactionRecord } from "@/libs/slices/sliceTransaction";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import currencyHelper from "@/helper/currencyHelper";
+import { DataTable } from "../Resusable/dataTable";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { DateRange } from "react-day-picker";
+import { format } from "date-fns";
 
 const CustomerTransactionUI = () => {
-  const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { isOpenDetailDialog } = useAppSelector(state => state.task);
   const { customerAccount, selectedCustomer } = useAppSelector(state => state.account);
@@ -22,6 +26,10 @@ const CustomerTransactionUI = () => {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [inputValue, setInputValue] = useState("");
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  })
 
   // Filter accounts based on input value (search by name or account number)
   const filteredAccounts = Array.isArray(customerAccount)
@@ -58,14 +66,28 @@ const CustomerTransactionUI = () => {
       console.log("Fetching Transaction History");
       dispatch(fetchAccountTransaction(selectedCustomer.account_number));
     }
-  }, [selectedCustomer])
+  }, [selectedCustomer]);
+
+  const filterByDate = useMemo(() => {
+    return transactions.filter((item: TransactionRecord) => {
+      const { transaction_date } = item;
+      let isValid = true;
+      if (date?.from) {
+        isValid = timeStampHelper.formatTimestamp(transaction_date || "") >= timeStampHelper.formatTimestamp(date.from.toISOString()) ? true : false;
+      }
+      if (date?.to) {
+        isValid = timeStampHelper.formatTimestamp(transaction_date || "") <= timeStampHelper.formatTimestamp(date.to.toISOString()) ? true : false;
+      }
+      return isValid;
+    });
+  }, [date, transactions]);
   return (
     <div className="text-white font-sans flex">
       <div className="flex-1 rounded-3xl">
-        {/* Tabs */}
+        {/* Header */}
         <div className="text-white font-sans flex">
           <div className="flex-1 rounded-3xl">
-            {/* Tabs */}
+            {/* Filter */}
             <div className="mb-2 mx-auto container">
               <h1 className="text-2xl font-bold mb-3">Customer Transaction History</h1>
               <div className="container max-w-sm 2xl:max-w-xl relative items-center">
@@ -77,7 +99,7 @@ const CustomerTransactionUI = () => {
                     onValueChange={setInputValue}
                     onClick={() => {
                       setOpen(true);
-                    }} // Toggle CommandList
+                    }} // Toggle Account Number
                   />
 
                   <div
@@ -86,7 +108,7 @@ const CustomerTransactionUI = () => {
                     {selectedCustomer && `${selectedCustomer.name} - ${selectedCustomer.account_number}` || "Select A Customer Account"}
                   </div>
 
-                  {/* CommandList */}
+                  {/* Account List */}
                   <CommandList className="absolute rounded-lg top-[calc(110%)] w-full z-20 bg-white" ref={inputRef}>
                     {open &&
                       filteredAccounts.length > 0 &&
@@ -101,12 +123,52 @@ const CustomerTransactionUI = () => {
                       ))}
                   </CommandList>
                 </Command>
+                {/* Date Picker */}
+                <div className={` gap-2 text-black absolute left-[calc(210%)] top-0 mt-1`}>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="date"
+                        variant={"outline"}
+                        className={cn(
+                          "w-[300px] justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon />
+                        {date?.from ? (
+                          date.to ? (
+                            <>
+                              {format(date.from, "LLL dd, y")} -{" "}
+                              {format(date.to, "LLL dd, y")}
+                            </>
+                          ) : (
+                            format(date.from, "LLL dd, y")
+                          )
+                        ) : (
+                          <span>Pick a date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        initialFocus
+                        mode="range"
+                        defaultMonth={date?.from}
+                        selected={date}
+                        onSelect={setDate}
+                        numberOfMonths={2}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
               </div>
             </div>
           </div>
         </div>
-        {/* Debt table */}
+        {/* Transactions table */}
         <div className="container mx-auto py-3">
+          <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(filterByDate, selectedCustomer?.account_number)} loading={loading} filterable={false} />
           <Dialog
             open={isOpenDetailDialog}
             onOpenChange={(data) => {
@@ -114,8 +176,7 @@ const CustomerTransactionUI = () => {
               dispatch(interactDetailDialog(data));
             }}
           >
-            <DialogTitle>Transaction Detail</DialogTitle>
-            <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(transactions, selectedCustomer?.account_number)} loading={loading} />
+            {/* <DialogTitle>Transaction Detail</DialogTitle> */}
             <DialogContent className="w-full max-w-md rounded-lg p-6 bg-white shadow-lg">
               <div className="flex flex-col items-center">
                 {/* Success Icon */}

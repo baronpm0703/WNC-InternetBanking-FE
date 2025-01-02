@@ -2,14 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import timeStampHelper from "@/helper/convertTimeStamp";
 import { useAppDispatch } from "@/libs/hooks";
-import { selectCustomer, selectCustomerById } from "@/libs/slices/sliceAccount";
+import { selectCustomerById } from "@/libs/slices/sliceAccount";
 import { openDetailDialog, openDialog } from "@/libs/slices/sliceTask";
 import { selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
-import { set } from "lodash";
-import { MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export type Payment = {
@@ -44,7 +44,7 @@ export type Transaction = {
   payment_method: "Sender Pay" | "Recipient Pay"
   amount: number
   transaction_date: string
-  isInterbank_transaction: boolean
+  isInterBank_transaction: boolean
   remarks: string
 }
 
@@ -331,7 +331,7 @@ export const transactionHistory: Transaction[] = [
       name: "Nguyen Van B"
     },
     payment_method: "Sender Pay",
-    isInterbank_transaction: false,
+    isInterBank_transaction: false,
     remarks: "Transfer",
     transaction_date: "Apr 20, 9:30 AM",
     transactionID: "xaa12",
@@ -411,10 +411,12 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       return (
-        <div className={
-          `text-center w-2/3 px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
-        `}>
+        <div className={`
+          text-center w-2/3 px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
+        `}
+        >
           <p>{status}</p>
+          
         </div>
       )
     }
@@ -441,7 +443,13 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
 export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   {
     accessorKey: "identity",
-    header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
+    header: ({column}) => 
+      <div 
+        className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+      </div>,
     cell: ({ row }) => {
       const identity = row.original.identity;
       return (
@@ -456,7 +464,11 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   },
   {
     accessorKey: "email",
-    header: () => <p className="text-left text-[#E0FFBC]">Email</p>,
+    header: ({}) => 
+      <div 
+      className="text-left text-[#E0FFBC] ">
+        Email
+      </div>,
   },
   {
     accessorKey: "phone",
@@ -468,7 +480,18 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   },
   {
     accessorKey: "date",
-    header: () => <p className="text-left text-[#E0FFBC]">Date</p>,
+    header: ({column}) => 
+      <div 
+        className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+        Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </div>,
+    cell: ({row}) => {
+      const date = row.original.date;
+      return <div className="text-left font-medium">{timeStampHelper.formatTimestamp(date)}</div>
+    }
   },
   {
     id: "actions",
