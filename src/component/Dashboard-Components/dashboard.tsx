@@ -1,11 +1,13 @@
 import timeStampHelper from "@/helper/convertTimeStamp";
 import currencyHelper from "@/helper/currencyHelper";
-import { useAppSelector } from "@/libs/hooks";
+import { useAppDispatch, useAppSelector } from "@/libs/hooks";
+import { fetchCustomerAccount } from "@/libs/slices/sliceAccount";
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const DashboardUI = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { error, accountInfo } = useAppSelector(state => state.account);
   useEffect(() => {
     console.log("Before Move Account Info: ", accountInfo);

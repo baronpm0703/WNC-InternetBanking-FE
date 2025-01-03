@@ -4,7 +4,7 @@ import { DashboardHeader } from "./header";
 
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { useEffect } from "react";
-import { fetchAccountInfo, fetchRecipients } from "@/libs/slices/sliceAccount";
+import { fetchAccountInfo, fetchRecipients, fetchCustomerAccount } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
 
 export default function Dashboard() {
@@ -14,6 +14,7 @@ export default function Dashboard() {
   useEffect(() => {
     console.log("Fetching Account Info");
     dispatch(fetchAccountInfo());
+    dispatch(fetchCustomerAccount());
   }, []);
   useEffect(() => {
     //Convert created string to date
