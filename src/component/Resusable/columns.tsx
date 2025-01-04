@@ -4,8 +4,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import { useAppDispatch } from "@/libs/hooks";
-import { selectCustomerById } from "@/libs/slices/sliceAccount";
-import { openDetailDialog, openDialog } from "@/libs/slices/sliceTask";
+import { selectCustomerById, selectEmployeeById } from "@/libs/slices/sliceAccount";
+import { openDeleteEmployeeDialog, openDetailDialog, openDialog, openEmployeeCreateDialog } from "@/libs/slices/sliceTask";
 import { selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
@@ -17,6 +17,12 @@ export type Payment = {
   amount: number
   status: "pending" | "processing" | "success" | "failed"
   email: string
+}
+
+export enum AccountRole {
+  Customer = "Customer",
+  Employee = "Employee",
+  Admin = "Admin"
 }
 
 export type Identity = {
@@ -56,6 +62,15 @@ export type customerAccount = {
   phone: string,
   accountNumber: string,
   accountBalance: number
+}
+
+export type employeeAccount = {
+  id: string,
+  identity: Identity,
+  date: string,
+  email: string,
+  phone: string,
+  role: AccountRole
 }
 
 export type Debt = {
@@ -610,6 +625,93 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
           </DropdownMenuContent>
         </DropdownMenu>
 
+      )
+    }
+  }
+]
+
+export const employeeAccountColumns: ColumnDef<employeeAccount>[] = [
+  {
+    accessorKey: "identity",
+    header: ({column}) => 
+      <div 
+        className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+      </div>,
+    cell: ({ row }) => {
+      const identity = row.original.identity;
+      return (
+        <div className="flex items-center">
+          <img src={identity.avt} alt="avatar" className="w-8 h-8 rounded-full" />
+          <div className="ml-2">
+            <p className="text-left font-medium">{identity.name}</p>
+          </div>
+        </div>
+      )
+    }
+  },
+  {
+    accessorKey: "email",
+    header: ({}) => 
+      <div 
+      className="text-left text-[#E0FFBC] ">
+        Email
+      </div>,
+  },
+  {
+    accessorKey: "phone",
+    header: () => <p className="text-left text-[#E0FFBC]">Phone</p>,
+  },
+  {
+    accessorKey: "role",
+    header: () => <p className="text-left text-[#E0FFBC]">Role</p>,
+  },
+  {
+    accessorKey: "date",
+    header: ({column}) => 
+      <div 
+        className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+        Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </div>,
+    cell: ({row}) => {
+      const date = row.original.date;
+      return <div className="text-left font-medium">{timeStampHelper.formatTimestamp(date)}</div>
+    }
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const dispatch = useAppDispatch();
+      const account = row.original; // Access Data's row
+      const navigate = useNavigate();
+      const handleEditEmployee = () => {
+        console.log("Edit Employee", account);
+        dispatch(openEmployeeCreateDialog());
+        dispatch(selectEmployeeById(parseInt(account.id)));
+      }
+      const handleDeleteAccount = () => {
+        console.log("Delete Employee", account);
+        dispatch(openDeleteEmployeeDialog());
+        dispatch(selectEmployeeById(parseInt(account.id)));
+      }
+      return (
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Action</span>
+              <MoreHorizontal className="w-5 h-5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
+            <DropdownMenuItem onClick={handleEditEmployee} onSelect={(e) => e.preventDefault()}>Edit Account</DropdownMenuItem>
+            <DropdownMenuItem onClick={handleDeleteAccount} onSelect={(e) => e.preventDefault()}>Delete Account</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     }
   }

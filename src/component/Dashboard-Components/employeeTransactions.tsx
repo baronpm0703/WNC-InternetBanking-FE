@@ -18,7 +18,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { DateRange } from "react-day-picker";
 import { format } from "date-fns";
 
-const CustomerTransactionUI = () => {
+const EmployeeTransactionUI = () => {
   const dispatch = useAppDispatch();
   const { isOpenDetailDialog } = useAppSelector(state => state.task);
   const { customerAccount, selectedCustomer } = useAppSelector(state => state.account);
@@ -236,4 +236,4 @@ const CustomerTransactionUI = () => {
   );
 };
 
-export default CustomerTransactionUI;
+export default EmployeeTransactionUI;

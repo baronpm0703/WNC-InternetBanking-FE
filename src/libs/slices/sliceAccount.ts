@@ -16,6 +16,7 @@ export type DepositInfo = {
 export type AccountInfo = {
   name: string
   email: string
+  username?: string
   account_balance: number
   account_number: string
   created_at?: string
@@ -37,7 +38,9 @@ export type Account = {
   depositSuccess?: boolean
   loading?: boolean
   employeeAccount?: AccountInfo[]
-  statusCreateCusAccount?: "Pending" | "Success" | "Failed"
+  selectedEmployee?: AccountInfo | null
+  statusCreateCusAccount?: "Pending" | "Success" | "Failed" | "None"
+  statusAdminActions?: "Pending" | "Success" | "Failed" | "None"
   createError?: string
   error: string | null
   selectedTargetData?: TransactionTarget | null;
@@ -46,8 +49,8 @@ export type Account = {
 
 export type CreateAccountType = {
   role: string,
-  username: string,
-  password: string
+  username?: string | null,
+  password?: string
   email: string,
   phone: string,
   name: string
@@ -145,6 +148,22 @@ export const fetchCustomerAccount = createAsyncThunk(
   }
 )
 
+export const fetchEmployeeAccount = createAsyncThunk(
+  "employee-account/fetch",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/admin/get-employees");
+      // Return token or other response data
+      return response.data; // Axios automatically parses JSON
+    } catch (error: any) {
+      console.error("Employee Account info error: ", error);
+      return rejectWithValue(
+        error.response?.data || "An unexpected error occurred"
+      );
+    }
+  }
+)
+
 export const fetchTransactionTarget = createAsyncThunk(
   "account/fetchTransactionTarget",
   async (accountNumber: string, { rejectWithValue }) => {
@@ -231,6 +250,38 @@ export const employeeCreateAccount = createAsyncThunk(
   }
 )
 
+export const adminUpdateInfo = createAsyncThunk(
+  "admin/updateInfo",
+  async (data: {name: string, email: string, phone: string, username: string}, { rejectWithValue }) => {
+    try {
+      let {username, ...rest} = data;
+      const response = await apiClient.put(`admin/update-employee-account/${username}`, rest);
+      // Return token or other response data
+      return response.data; // Axios automatically parses JSON
+    } catch (error: any) {
+      console.error("Update info error: ", error);
+      return rejectWithValue(
+        error.response?.data || "An unexpected error occurred"
+      );
+    }
+  }
+)
+
+export const adminDeleteAccount = createAsyncThunk(
+  "admin/deleteAccount",
+  async (data: {username: string}, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.delete(`admin/delete-employee-account`, {data});
+      // Return token or other response data
+      return response.data; // Axios automatically parses JSON
+    } catch (error: any) {
+      console.error("Admin delete employee info error: ", error);
+      return rejectWithValue(
+        error.response?.data || "An unexpected error occurred"
+      );
+    }
+  }
+)
 export const sliceAccount = createSlice({
   initialState,
   name: "account",
@@ -242,10 +293,21 @@ export const sliceAccount = createSlice({
     selectCustomer: (state, action: slicePayload<AccountInfo>) => {
       state.selectedCustomer = action.payload || null;
     },
+    selectEmployeeById: (state, action: slicePayload<number>) => {
+      const index = action.payload;
+      state.selectedEmployee = state.employeeAccount ? state.employeeAccount[index] : null;
+    },
+    selectEmployee: (state, action: slicePayload<AccountInfo>) => {
+      state.selectedEmployee = action.payload || null;
+    },
     resetSelected: (state) => {
       state.selectedCustomer = null;
       state.depositSuccess = false;
+      state.selectedEmployee = null;
+      state.statusCreateCusAccount = "None";
+      state.statusAdminActions = "None";
       state.error = ""
+      state.createError = ""
     }
   },
   extraReducers(builder) {
@@ -357,18 +419,67 @@ export const sliceAccount = createSlice({
       })
       .addCase(employeeCreateAccount.pending, (state) => {
         state.statusCreateCusAccount = "Pending";
+        state.statusAdminActions = "Pending";
       })
       .addCase(employeeCreateAccount.fulfilled, (state) => {
         state.statusCreateCusAccount = "Success";
+        state.statusAdminActions = "Success";
       })
       .addCase(employeeCreateAccount.rejected, (state, action) => {
         state.statusCreateCusAccount = "Failed";
+        state.statusAdminActions = "Failed";
         state.createError = action.payload as string;
         console.error("Create customer account error: ", action.payload);
       })
-  
+      .addCase(adminUpdateInfo.pending, (state) => {
+        state.statusAdminActions = "Pending";
+      })
+      .addCase(adminUpdateInfo.fulfilled, (state) => {
+        state.statusAdminActions = "Success";
+      })
+      .addCase(adminUpdateInfo.rejected, (state, action) => {
+        state.statusAdminActions = "Failed";
+        state.createError = action.payload as string;
+        console.error("Update employee account error: ", action.payload);
+      })
+      .addCase(fetchEmployeeAccount.pending, (state) => {
+        state.employeeAccount = [];
+        state.error = ""
+      })
+      .addCase(fetchEmployeeAccount.fulfilled, (state, action: slicePayload<object[]>) => {
+        let temp = action.payload;
+        state.employeeAccount = temp.map((item: any) => {
+          return {
+            name: item.name,
+            email: item.email,
+            phone: item.phone,
+            account_balance: 0,
+            account_number: "employee_placeholder",
+            role: item.role,
+            username: item.username,
+            created_at: item.created_at
+          }
+        })
+        state.error = ""
+        console.log("Employee Account info: ", state.employeeAccount);
+      })
+      .addCase(fetchEmployeeAccount.rejected, (state, action) => {
+        state.error = action.payload as string;
+        console.error("Employee Account info error: ", action.payload);
+      })
+      .addCase(adminDeleteAccount.pending, (state) => {
+        state.statusAdminActions = "Pending";
+      })
+      .addCase(adminDeleteAccount.fulfilled, (state) => {
+        state.statusAdminActions = "Success";
+      })
+      .addCase(adminDeleteAccount.rejected, (state, action) => {
+        state.statusAdminActions = "Failed";
+        state.createError = action.payload as string;
+        console.error("Delete employee account error: ", action.payload);
+      })
   },
 })
 
-export const { selectCustomer, resetSelected, selectCustomerById } = sliceAccount.actions;
+export const { selectCustomer, resetSelected, selectCustomerById, selectEmployeeById, selectEmployee } = sliceAccount.actions;
 export const accountReducer = sliceAccount.reducer;

@@ -17,6 +17,8 @@ interface TaskState {
     currentTaskList: Task[];
     isShowAddTask: boolean;
     isOpenDetailDialog: boolean;
+    isOpenEmployeeCreateDialog: boolean;
+    isOpenDeleteEmployeeDialog: boolean;
     loading: boolean;
 }
 const initialState: TaskState = {
@@ -24,6 +26,8 @@ const initialState: TaskState = {
     isOpenDialog: false,
     isOpenDetailDialog: false,
     currentTaskList: [],
+    isOpenEmployeeCreateDialog: false,
+    isOpenDeleteEmployeeDialog: false,
     isShowAddTask: false,
     loading: false,
 };
@@ -149,6 +153,20 @@ export const sliceTask = createSlice({
         interactDetailDialog: (state, action) => {
             console.log("Interact detail dialog", action.payload);
             state.isOpenDetailDialog = action.payload;
+        },
+        openEmployeeCreateDialog: (state) => {
+            state.isOpenEmployeeCreateDialog = !state.isOpenEmployeeCreateDialog;
+        },
+        interactEmployeeCreateDialog: (state, action) => {
+            console.log("Interact employee create dialog", action.payload);
+            state.isOpenEmployeeCreateDialog = action.payload;
+        },
+        openDeleteEmployeeDialog: (state) => {
+            state.isOpenDeleteEmployeeDialog = !state.isOpenDeleteEmployeeDialog;
+        },
+        interactDeleteEmployeeDialog: (state, action) => {
+            console.log("Interact delete employee dialog", action.payload);
+            state.isOpenDeleteEmployeeDialog = action.payload
         }
     },
     extraReducers: (builder) => {
@@ -197,5 +215,5 @@ export const sliceTask = createSlice({
     }
 })
 
-export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog } = sliceTask.actions;
+export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog } = sliceTask.actions;
 export const taskReducer = sliceTask.reducer;

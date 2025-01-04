@@ -4,7 +4,7 @@ import { DashboardHeader } from "./header";
 
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { useEffect } from "react";
-import { fetchAccountInfo, fetchRecipients, fetchCustomerAccount } from "@/libs/slices/sliceAccount";
+import { fetchAccountInfo, fetchRecipients, fetchCustomerAccount, fetchEmployeeAccount } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
 
 export default function Dashboard() {
@@ -13,9 +13,13 @@ export default function Dashboard() {
   
   useEffect(() => {
     console.log("Fetching Account Info");
-    dispatch(fetchAccountInfo());
-    dispatch(fetchCustomerAccount());
-  }, []);
+    if (!accountInfo.name) {
+      console.log("Empty Account Info...");
+      dispatch(fetchAccountInfo());
+      dispatch(fetchCustomerAccount());
+      dispatch(fetchEmployeeAccount());
+    }
+  }, [accountInfo]);
   useEffect(() => {
     //Convert created string to date
     const date = timeStampHelper.formatTimestamp(accountInfo.created_at || "");

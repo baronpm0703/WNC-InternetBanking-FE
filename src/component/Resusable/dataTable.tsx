@@ -70,7 +70,7 @@ export function DataTable<TData, TValue>({
           <Input
             placeholder={`Filter ${filterFields && filterFields.length > 0 ? filterFields[0] : "email"}...`}
             value={(table.getColumn(filterFields && filterFields.length > 0 ? filterFields[0] : "email")?.getFilterValue() as string) ?? ""}
-            onChange={(event) =>
+            onChange={(event) => 
               table.getColumn(filterFields && filterFields.length > 0 ? filterFields[0] : "email")?.setFilterValue(event.target.value)
             }
             className="pr-10 pl-4 py-2 border border-gray-300 rounded-lg w-full"

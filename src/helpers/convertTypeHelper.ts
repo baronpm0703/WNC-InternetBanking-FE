@@ -1,4 +1,4 @@
-import { customerAccount, Identity, Transaction } from "@/component/Resusable/columns";
+import { customerAccount, employeeAccount, Identity, Transaction, AccountRole } from "@/component/Resusable/columns";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import { AccountInfo } from "@/libs/slices/sliceAccount";
 import { TransactionRecord } from "@/libs/slices/sliceTransaction";
@@ -20,6 +20,26 @@ const converTypeHelper = {
         email: item.email,
         accountNumber: item.account_number,
         accountBalance: item.account_balance,
+      }
+    })
+    return object;
+  },
+
+  convertToEmployeeAccountColumns: (data: AccountInfo[] | undefined | null) => {
+    if (!data) return [];
+    let object: employeeAccount[] = data.map((item: AccountInfo, index) => {
+      const random = Math.floor(Math.random() * 100);
+      return {
+        id: index.toString(),
+        phone: item.phone,
+        identity: {
+          name: item.name,
+          phone: random.toString(),
+          avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`
+        },
+        role: item.role as AccountRole,
+        date: timeStampHelper.formatTimestamp(item.created_at || ""),
+        email: item.email,
       }
     })
     return object;
