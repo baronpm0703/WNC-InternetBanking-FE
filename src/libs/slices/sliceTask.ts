@@ -16,11 +16,13 @@ interface TaskState {
     isOpenDialog: boolean;
     currentTaskList: Task[];
     isShowAddTask: boolean;
+    isOpenDetailDialog: boolean;
     loading: boolean;
 }
 const initialState: TaskState = {
     allTask: [],
     isOpenDialog: false,
+    isOpenDetailDialog: false,
     currentTaskList: [],
     isShowAddTask: false,
     loading: false,
@@ -140,6 +142,13 @@ export const sliceTask = createSlice({
         interactDialog: (state, action) => {
             console.log("Interact dialog", action.payload);
             state.isOpenDialog = action.payload;
+        },
+        openDetailDialog: (state) => {
+            state.isOpenDetailDialog = !state.isOpenDialog;
+        },
+        interactDetailDialog: (state, action) => {
+            console.log("Interact detail dialog", action.payload);
+            state.isOpenDetailDialog = action.payload;
         }
     },
     extraReducers: (builder) => {
@@ -188,5 +197,5 @@ export const sliceTask = createSlice({
     }
 })
 
-export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog } = sliceTask.actions;
+export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog } = sliceTask.actions;
 export const taskReducer = sliceTask.reducer;

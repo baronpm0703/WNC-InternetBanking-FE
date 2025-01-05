@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useForm } from "react-hook-form";
+import { useForm, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faArrowLeft } from '@fortawesome/free-solid-svg-icons'
 import currencyHelper from "@/helper/currencyHelper";
+import ReactCodeInput from "react-code-input";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,8 +21,9 @@ import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { fetchAccountInfo, fetchTransactionTarget, saveBeneficiary } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
-import { createInternalTransaction, sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
+import { createExternalTransaction, createInternalTransaction, sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
 import { toast } from "react-toastify";
+import { fetchBankById, fetchExternalAccount, fetchExternalBanks } from "@/libs/slices/sliceExternalBank";
 
 const TransferSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
@@ -53,18 +55,32 @@ const OtpFormSchemaSameBank = z.object({
 
 const TransferInterBankSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
-  toBank: z.string().nonempty({ message: "Please select a bank account." }),
-  transferTo: z.string().nonempty({ message: "Please select a beneficiary account." }),
-  amount: z
+  toBankInterbank: z.string().nonempty({ message: "Please select a bank account." }),
+  transferToInterbank: z.string().nonempty({ message: "Please select a beneficiary account." }),
+  amountInterbank: z
     .string()
     .nonempty({ message: "Amount is required." })
     .regex(/^\d+(\.\d{1,2})?$/, { message: "Please enter a valid amount." }),
-  purpose: z.string().nonempty({ message: "Purpose is required." }),
-  feePayer: z.string().nonempty({ message: "Please select a fee payer." }),
+  purposeInterbank: z.string().nonempty({ message: "Purpose is required." }),
+  feePayerInterbank: z.string().nonempty({ message: "Please select a fee payer." }),
+});
+
+const OtpFormSchemaInterBank = z.object({
+  our_bank_account_number: z.string().nonempty({ message: "Source account is required." }),
+  otp: z
+    .string()
+    .nonempty({ message: "OTP is required." })
+    .regex(/^\d{6}$/, { message: "OTP must be a 6-digit number." }),
+  client_bank_account_number: z.string().nonempty({ message: "Beneficiary account number is required." }),
+  client_bank_name: z.string().nonempty({ message: "Beneficiary name is required." }),
+  payment_method: z.string().nonempty({ message: "Payment method is required." }),
+  amount: z
+    .number()
+    .min(0.01, { message: "Amount must be greater than 0." }),
+  remarks: z.string().optional(),
 });
 
 const TransferUI = () => {
-
   const [activeTab, setActiveTab] = useState("sameBank");
   const [activeStep, setActiveStep] = useState("transfer"); // New state for tracking steps
   const navigate = useNavigate();
@@ -75,13 +91,11 @@ const TransferUI = () => {
   const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
 
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
-  const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '', attribute3: '' });
+  const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState<{ attribute1: string; attribute2: string } | null>(null);
 
   const setActiveTabAndCloseDropdowns = (tab: string) => {
     setActiveTab(tab);
   };
-
-  const [formData, setFormData] = useState<any>(null);
 
   const form = useForm({
     resolver: zodResolver(TransferSchema),
@@ -109,6 +123,7 @@ const TransferUI = () => {
     }
   }, [accountInfo, reset]);
 
+
   useEffect(() => {
     const date = timeStampHelper.formatTimestamp(accountInfo.created_at || "");
   }, [name])
@@ -116,14 +131,31 @@ const TransferUI = () => {
   const formInterBank = useForm({
     resolver: zodResolver(TransferInterBankSchema),
     defaultValues: {
-      transferFrom: `${accountInfo.name} - ${accountInfo.account_number}`,
-      toBank: "",
-      transferTo: "",
-      amount: "",
-      purpose: "",
-      feePayer: "",
+      transferFrom: "",
+      toBankInterbank: "",
+      transferToInterbank: "",
+      amountInterbank: "",
+      purposeInterbank: "",
+      feePayerInterbank: "",
+      saveBeneficiaryInterbank: "",
     },
   });
+
+  const { reset: resetFormInterBank } = formInterBank;
+
+  useEffect(() => {
+    if (accountInfo?.name && accountInfo?.account_number) {
+      resetFormInterBank({
+        transferFrom: `${accountInfo.name} - ${accountInfo.account_number}`,
+        toBankInterbank: "",
+        transferToInterbank: "",
+        amountInterbank: "",
+        purposeInterbank: "",
+        feePayerInterbank: "",
+      });
+    }
+  }, [accountInfo.name, accountInfo.account_number, resetFormInterBank]);
+
 
   const formOtpSameBank = useForm({
     resolver: zodResolver(OtpFormSchemaSameBank),
@@ -140,8 +172,22 @@ const TransferUI = () => {
     },
   });
 
+
+  const formOtpInterBank = useForm({
+    resolver: zodResolver(OtpFormSchemaInterBank),
+    defaultValues: {
+      our_bank_account_number: "",
+      otp: "",
+      client_bank_account_number: "",
+      client_bank_name: "",
+      payment_method: "Sender Pay",
+      amount: 0,
+      remarks: "",
+    },
+  });
+
   function onSubmitSameBank(data: any) {
-    const [transferFromName, ownAccountNumber] = data.transferFrom.split(" - ");
+    const [, ownAccountNumber] = data.transferFrom.split(" - ");
     const [targetName, targetAccountNumber] = data.transferTo.split(" - ");
 
     if (isSaveBeneficiary && !memory.trim()) {
@@ -172,7 +218,7 @@ const TransferUI = () => {
         if (isSaveBeneficiary) {
           const beneficiaryData = {
             account_number: targetAccountNumber,
-            bank_id: "6750a0c9a9dc441ad3fbfb9f", 
+            bank_id: "6750a0c9a9dc441ad3fbfb9f",
             reminder_name: memory,
           };
 
@@ -210,13 +256,77 @@ const TransferUI = () => {
   }
 
   function onSubmitInterBank(data: any) {
-    console.log("Form Submitted:", data);
-    setFormData(data);
+    const [, ownAccountNumber] = data.transferFrom.split(" - ");
+    const [, targetAccountNumber] = data.transferToInterbank.split(" - ");
+
+    if (isSaveBeneficiary && !memory.trim()) {
+      formInterBank.setError("saveBeneficiaryInterbank", {
+        type: "manual",
+        message: "Please enter a memorable name for the beneficiary.",
+      });
+      return;
+    }
+
+    formOtpInterBank.setValue("our_bank_account_number", ownAccountNumber);
+    formOtpInterBank.setValue("otp", "");
+    formOtpInterBank.setValue("client_bank_account_number", targetAccountNumber);
+    formOtpInterBank.setValue("client_bank_name", data.toBankInterbank);
+    formOtpInterBank.setValue("payment_method", data.feePayerInterbank);
+    formOtpInterBank.setValue("amount", parseFloat(data.amountInterbank));
+    formOtpInterBank.setValue("remarks", data.purposeInterbank);
+
+    console.log("Updated formOtpSameBank:", formOtpInterBank.getValues());
+
     setActiveStep("otp");
+
+    dispatch(sendOtpTransactionSameBank(data))
+      .unwrap()
+      .then((response: any) => {
+        console.log("Transaction created successfully:", response);
+
+        if (isSaveBeneficiary) {
+          const beneficiaryData = {
+            account_number: targetAccountNumber,
+            bank_id: selectedBankId,
+            reminder_name: memory,
+          };
+          console.log("beneficiary inter: ", selectedBankId);
+          dispatch(saveBeneficiary(beneficiaryData))
+            .unwrap()
+            .then((res) => {
+              console.log("Beneficiary saved successfully:", res);
+              toast.success("Beneficiary saved successfully!");
+              dispatch(fetchAccountInfo());
+            })
+            .catch((err) => {
+              console.error("Failed to save beneficiary:", err);
+              toast.error("Failed to fetch updated recipients!");
+            });
+        }
+      })
+      .catch((error) => {
+        console.error("Error creating transaction:", error);
+      });
   }
 
   function onSubmitInterBankOTP(data: any) {
-    console.log("Form Submitted otp inter bank:", data);
+    console.log("bankId after moving to otp:", selectedBankId);
+    dispatch(
+      createExternalTransaction({
+        transactionData: data,
+        clientId: selectedBankId,
+      })
+    ).unwrap()
+      .then((response: any) => {
+        console.log("External Transaction created successfully:", response);
+        toast.success("External Transaction created successfully!");
+        setActiveStep("transferSuccess");
+        dispatch(fetchAccountInfo());
+      })
+      .catch((error) => {
+        console.error("Error creating External transaction:", error);
+        toast.error("Failed to create External Transaction!")
+      });
   }
 
   const [inputValue, setInputValue] = useState<string>("");
@@ -226,6 +336,20 @@ const TransferUI = () => {
     form.setValue("transferTo", "");
     setSelectedTransferTo({ attribute1: "", attribute2: "" });
     form.clearErrors("transferTo");
+  };
+
+  const [selectedBankId, setSelectedBankId] = useState("");
+
+
+  const handleInputChangeInterBank = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
+    if (formInterBank.getValues("transferToInterbank") && formInterBank.getValues("toBankInterbank") && selectedBankId) {
+      formInterBank.setValue("transferToInterbank", "", { shouldValidate: true });
+      formInterBank.setValue("toBankInterbank", "", { shouldValidate: true });
+      setSelectedBankId("");
+      setSelectedTransferToInterBank({ attribute1: "", attribute2: "" });
+      formInterBank.clearErrors("transferToInterbank");
+    }
   };
 
   const handleFetchTargetDataSameBank = () => {
@@ -249,10 +373,8 @@ const TransferUI = () => {
           attribute2: data.account_number,
         });
         form.setValue("transferTo", `${data.name} - ${data.account_number}`);
-        console.log("Data: ", form.getValues("transferTo"));
       })
-      .catch((err) => {
-        console.error("Error fetching target data:", err);
+      .catch(() => {
         form.setError("transferTo", {
           type: "manual",
           message: "No account number found",
@@ -260,67 +382,56 @@ const TransferUI = () => {
       });
   };
 
-  const handleTransferToInputChangeInterBank = (event) => {
-    const inputAccountNumber = event.target.value.trim();
-    setAccountNumberInput(inputAccountNumber);
+  const handleFetchTargetDataInterBank = () => {
+    const trimmedInput = inputValue.trim();
 
-    const toBankValue = formInterBank.watch('toBank');
-
-    if (inputAccountNumber === "") {
-      setSelectedTransferToInterBank({ attribute1: "", attribute2: "", attribute3: "" });
-      formInterBank.setValue("transferTo", "");
+    if (!trimmedInput) {
+      formInterBank.setError("transferToInterbank", {
+        type: "manual",
+        message: "Please enter a valid account number",
+      });
       return;
     }
 
-    const matchedAccount = interBankAccounts.find(
-      (account) =>
-        account.attribute2 === inputAccountNumber && account.attribute3 === toBankValue
-    );
-
-    if (matchedAccount) {
-      setSelectedTransferToInterBank(matchedAccount);
-      formInterBank.setValue(
-        "transferTo",
-        `${matchedAccount.attribute1} - ${matchedAccount.attribute2}`
-      );
-      formInterBank.clearErrors("transferTo"); // Xóa lỗi nếu có
-    } else {
-      setSelectedTransferToInterBank({ attribute1: "", attribute2: inputAccountNumber, attribute3: "" });
-      formInterBank.setError("transferTo", {
+    if (formInterBank.getValues("toBankInterbank") == "") {
+      console.log("bank is empty")
+      formInterBank.setError("toBankInterbank", {
         type: "manual",
-        message: "Account number is not valid or does not match the selected bank.",
+        message: "Please select bank",
       });
     }
+
+    const transferFrom = formInterBank.getValues("transferFrom");
+
+    dispatch(fetchExternalAccount({ account_number: trimmedInput, bank_id: selectedBankId }))
+      .unwrap()
+      .then((data) => {
+        if (transferFrom && transferFrom.includes(data.account_number)) {
+          formInterBank.setError("transferToInterbank", {
+            type: "manual",
+            message: "You cannot transfer to yourself",
+          });
+          return;
+        }
+
+        setSelectedTransferToInterBank({
+          attribute1: data.name,
+          attribute2: data.account_number,
+        });
+
+        formInterBank.setValue(
+          "transferToInterbank",
+          `${data.name} - ${data.account_number}`
+        );
+      })
+      .catch(() => {
+        toast.error("No account found! Please fetch or select valid account");
+        formInterBank.setError("transferToInterbank", {
+          type: "manual",
+          message: "Please enter a valid account number",
+        });
+      });
   };
-
-
-  const [accountNumberInput, setAccountNumberInput] = useState('');
-
-  const interBankAccounts = [
-    { attribute1: "NGUYEN LAM HAI", attribute2: "123456", attribute3: "MT BANK" },
-    { attribute1: "PHAN THAI KHANG", attribute2: "22222", attribute3: "KP BANK" },
-    { attribute1: "NGUYEN PHU MINH BAO", attribute2: "233434", attribute3: "TP BANK" },
-    { attribute1: "NGUYEN ANH KHOA", attribute2: "35667", attribute3: "MB BANK" },
-  ];
-
-  const banks = [
-    { attribute1: "MT BANK" },
-    { attribute1: "TP BANK" },
-    { attribute1: "AB BANK" },
-    { attribute1: "CD BANK" },
-  ];
-
-  interBankAccounts.filter((interBankAccount) =>
-    `${interBankAccount.attribute1} - ${interBankAccount.attribute2} - ${interBankAccount.attribute3}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  )
-
-  banks.filter((bank) =>
-    `${bank.attribute1}`
-      .toLowerCase()
-      .includes(searchQuery.toLowerCase())
-  )
 
   const [isSaveBeneficiary, setIsSaveBeneficiary] = useState(false);
   const [memory, setMemory] = useState("");
@@ -329,10 +440,84 @@ const TransferUI = () => {
 
   useEffect(() => {
     const subscription = formInterBank.watch((value) => {
-      setToBankValue(value.toBank || '');
+      setToBankValue(value.toBankInterbank || '');
     });
     return () => subscription.unsubscribe();
   }, [formInterBank]);
+
+  const { banks } = useAppSelector((state) => state.externalBanks);
+
+  useEffect(() => {
+    dispatch(fetchExternalBanks());
+  }, [dispatch]);
+
+  const [recipientInterBank, setRecipientInterBank] = useState<
+    { bank_name: string; account_number: string; reminder_name: string, bank_id: string }[]
+  >([]);
+
+  const [recipientSameBank, setRecipientSameBank] = useState<
+    { bank_name: string; account_number: string; reminder_name: string }[]
+  >([]);
+
+  useEffect(() => {
+    const fetchAndFilterRecipients = async () => {
+      const filteredRecipients = recipients.filter(
+        (recipient) => recipient.bank_id !== "6750a0c9a9dc441ad3fbfb9f"
+      );
+
+      const updatedRecipients = await Promise.all(
+        filteredRecipients.map(async (recipient) => {
+          try {
+            const bank = await dispatch(fetchBankById(recipient.bank_id)).unwrap();
+            return {
+              bank_name: bank.name,
+              account_number: recipient.account_number,
+              reminder_name: recipient.reminder_name,
+              bank_id: bank.bank_id
+            };
+          } catch (error) {
+            console.error(
+              `Failed to fetch bank name for bank_id: ${recipient.bank_id}`,
+              error
+            );
+            return null;
+          }
+        })
+      );
+      setRecipientInterBank(updatedRecipients.filter((r) => r !== null));
+    };
+
+    const fetchAndFilterRecipientsSameBank = async () => {
+      const sameBankRecipients = recipients.filter(
+        (recipient) => recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f"
+      );
+
+      const updatedSameBankRecipients = sameBankRecipients.map((recipient) => {
+        return {
+          bank_name: "Nhom10Bank",
+          account_number: recipient.account_number,
+          reminder_name: recipient.reminder_name,
+          bank_id: recipient.bank_id,
+        };
+      });
+
+      setRecipientSameBank(updatedSameBankRecipients);
+    };
+
+    fetchAndFilterRecipientsSameBank();
+    fetchAndFilterRecipients();
+  }, [accountInfo.recipient_list, dispatch]);
+
+  const handleErrors = (errors: FieldErrors) => {
+    console.error("Validation errors:", errors);
+
+    Object.values(errors).forEach((error) => {
+      const err = error as { message?: string };
+      if (err?.message) {
+        toast.error(err.message);
+      }
+    });
+  };
 
 
   return (
@@ -381,7 +566,7 @@ const TransferUI = () => {
           {activeTab === "sameBank" ? (
             activeStep === "transfer" ? (
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmitSameBank)} className="w-full space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmitSameBank, handleErrors)} className="w-full space-y-6">
                   {/* Transfer From */}
                   <FormField
                     control={form.control}
@@ -475,7 +660,7 @@ const TransferUI = () => {
                                     />
                                   </div>
                                   <DropdownMenuSeparator />
-                                  {recipients
+                                  {recipientSameBank
                                     .filter((account) =>
                                       `${account.reminder_name} - ${account.account_number}`
                                         .toLowerCase()
@@ -634,7 +819,7 @@ const TransferUI = () => {
                               <span className="text-white text-sm">Sender Pay</span>
                             </label>
 
-                            {/* Checkbox for Receiver Pay */}
+                            {/* Checkbox for Recipient Pay */}
                             <label className="flex items-center space-x-2">
                               <input
                                 type="radio" value="Recipient Pay"
@@ -683,10 +868,13 @@ const TransferUI = () => {
                       </p>
                     </div>
 
-                    {/* Amount */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Amount:</p>
-                      <p className="text-white font-bold">{formOtpSameBank.getValues("amount")} VND</p>
+                      <p className="text-white font-bold">
+                        {formOtpSameBank
+                          .getValues("amount")
+                          ?.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                      </p>
                     </div>
 
                     {/* Remarks */}
@@ -698,30 +886,81 @@ const TransferUI = () => {
                     {/* Payment Method */}
                     <div className="mb-4 flex justify-between">
                       <p className="text-gray-400">Fee Payer:</p>
-                      <p className="text-white font-bold">{formOtpSameBank.getValues("payment_method")}</p>
+                      <p className="text-white font-bold">
+                        {(() => {
+                          const paymentMethod = formOtpSameBank.getValues("payment_method");
+                          const amount = formOtpSameBank.getValues("amount");
+                          if (paymentMethod === "Recipient Pay") {
+                            return `0đ (Recipient Pay)`;
+                          } else if (paymentMethod === "Sender Pay") {
+                            const fee = amount * 0.1;
+                            return `${fee.toLocaleString("vi-VN", { style: "currency", currency: "VND" })} (Sender Pay)`;
+                          }
+                          return "Unknown";
+                        })()}
+                      </p>
                     </div>
 
+                    <div className="border-t border-gray-600 my-4"></div>
+
+                    {/* Total Amount */}
+                    <div className="mb-4 flex justify-between">
+                      <p className="text-gray-400">Total Amount:</p>
+                      <p className="text-green-400 font-bold text-xl">
+                        {(() => {
+                          const paymentMethod = formOtpSameBank.getValues("payment_method");
+                          const amount = formOtpSameBank.getValues("amount");
+                          if (paymentMethod === "Recipient Pay") {
+                            return `${amount.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}`;
+                          } else if (paymentMethod === "Sender Pay") {
+                            const fee = amount * 0.1;
+                            const total = amount + fee;
+                            return `${total.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}`;
+                          }
+                          return "Unknown";
+                        })()}
+                      </p>
+                    </div>
+
+
                     {/* OTP Input */}
-                    <FormField
-                      control={formOtpSameBank.control}
-                      name="otp"
-                      render={({ field, fieldState }) => (
-                        <FormItem>
-                          <FormControl>
-                            <Input
-                              type="text"
-                              placeholder="Enter OTP"
-                              {...field}
-                              className={`w-full py-5 px-6 bg-white text-black text-lg rounded-xl border ${fieldState.error ? "border-red-500" : "border-gray-800"
-                                } focus:outline-none`}
-                            />
-                          </FormControl>
-                          {fieldState.error && (
-                            <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                    <div className="border-t border-gray-600 my-4"></div>
+
+                      <div className="mb-4 flex flex-col items-center">
+                        <p className="text-white text-sm mb-4">Enter OTP sending to your email!</p>
+                        <FormField
+                          control={formOtpSameBank.control}
+                          name="otp"
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormControl>
+                                <ReactCodeInput
+                                  type="number"
+                                  fields={6}
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                  inputStyle={{
+                                    width: "2.5rem",
+                                    height: "2.5rem",
+                                    margin: "0.5rem",
+                                    fontSize: "1.5rem",
+                                    textAlign: "center",
+                                    borderRadius: "0.5rem",
+                                    color: "black",
+                                    border: fieldState.error
+                                      ? "2px solid red"
+                                      : "1px solid green",
+                                    backgroundColor: fieldState.error ? "#fee2e2" : "#d1fae5",
+                                  }}
+                                />
+                              </FormControl>
+                              {fieldState.error && (
+                                <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                              )}
+                            </FormItem>
                           )}
-                        </FormItem>
-                      )}
-                    />
+                        />
+                      </div>
 
                     {/* Submit Button */}
                     <Button
@@ -786,9 +1025,7 @@ const TransferUI = () => {
                 <Form {...formInterBank}>
                   <form onSubmit={formInterBank.handleSubmit(
                     onSubmitInterBank,
-                    (errors) => {
-                      console.error("Validation errors:", errors);
-                    }
+                    handleErrors,
                   )} className="w-full space-y-6">
                     <FormField
                       control={formInterBank.control}
@@ -811,8 +1048,9 @@ const TransferUI = () => {
 
                     <FormField
                       control={formInterBank.control}
-                      name="toBank"
-                      render={({ field, fieldState }) => {
+                      name="toBankInterbank"
+                      render={({ fieldState }) => {
+                        console.log("get state error: ", fieldState.error)
                         return (
                           <FormItem>
                             <label className="block text-white text-sm mb-2">To Bank</label>
@@ -843,28 +1081,26 @@ const TransferUI = () => {
                                   </div>
                                   <DropdownMenuSeparator />
                                   {banks
-                                    .filter((bank) =>
-                                      bank.attribute1.toLowerCase().includes(searchQuery.toLowerCase())
-                                    )
                                     .map((bank) => (
                                       <DropdownMenuItem
-                                        key={bank.attribute1}
+                                        key={bank.name}
                                         onClick={() => {
-                                          formInterBank.setValue('toBank', bank.attribute1);
-                                          formInterBank.setValue('transferTo', '');
-                                          setAccountNumberInput('');
+                                          formInterBank.setValue("toBankInterbank", bank.name, { shouldValidate: true });
+                                          formInterBank.setValue("transferToInterbank", "", { shouldValidate: true });
                                           setSelectedTransferToInterBank(null);
+                                          setToBankValue(bank.name);
+                                          setSelectedBankId(bank.bank_id);
                                         }}
                                         className="flex items-center justify-between px-4 py-2 space-x-4"
                                       >
                                         <div className="flex items-center space-x-4">
                                           <img
                                             src={'https://via.placeholder.com/40'}
-                                            alt={bank.attribute1}
+                                            alt={bank.name}
                                             className="w-10 h-10 rounded-full"
                                           />
                                           <div>
-                                            <p className="text-sm font-medium text-black">{bank.attribute1}</p>
+                                            <p className="text-sm font-medium text-black">{bank.name}</p>
                                           </div>
                                         </div>
                                         <span className="text-gray-400 text-sx">{'>'}</span>
@@ -886,112 +1122,140 @@ const TransferUI = () => {
 
                     <FormField
                       control={formInterBank.control}
-                      name="transferTo"
-                      render={({ field, fieldState }) => (
-                        <FormItem>
-                          <label className="block text-white text-sm mb-2">Transfer To</label>
-                          <FormControl>
-                            <div className="flex justify-between items-center space-x-3">
-                              {/* Input Field */}
-                              <input
-                                type="text"
-                                placeholder="Enter account number"
-                                value={selectedTransferToInterBank?.attribute2 || accountNumberInput} // Hiển thị attribute2 hoặc giá trị nhập
-                                className={`w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
-                                  } focus:outline-none`}
-                                onChange={(e) => {
-                                  setAccountNumberInput(e.target.value);
-                                  handleTransferToInputChangeInterBank(e);
-                                }}
-                              />
-                              <div className="w-1/2 relative">
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
-                                        } focus:outline-none hover:border-white transition-all duration-200`}
+                      name="transferToInterbank"
+                      render={({ field, fieldState }) => {
+                        console.log("Error State transfer to:", fieldState.error);
+                        return (
+                          <FormItem>
+                            <label className="block text-white text-sm mb-2">Transfer To</label>
+                            <FormControl>
+                              <div className="flex justify-between items-center space-x-3">
+                                <div className={`relative w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
+                                  } focus:outline-none`}>
+                                  <input
+                                    type="text"
+                                    placeholder="Enter account number"
+                                    value={inputValue}
+                                    className={`w-full bg-gray-900 text-white rounded-xl focus:outline-none`}
+                                    onChange={handleInputChangeInterBank}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleFetchTargetDataInterBank();
+                                    }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleFetchTargetDataInterBank}
+                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white focus:outline-none"
+                                  >
+                                    <svg
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      className="h-5 w-5"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
                                     >
-                                      {selectedTransferToInterBank?.attribute1 && selectedTransferToInterBank?.attribute2
-                                        ? `${selectedTransferToInterBank.attribute1} - ${selectedTransferToInterBank.attribute2}`
-                                        : 'Select Beneficiary Account'}
-                                    </button>
-
-                                  </DropdownMenuTrigger>
-
-                                  <DropdownMenuContent className="w-full">
-                                    <DropdownMenuLabel>Select an Account</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <div className="px-2 py-2">
-                                      <input
-                                        type="text"
-                                        placeholder="Search accounts..."
-                                        className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none rounded-xl focus:ring focus:ring-blue-500 text-white"
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M5 12h14M12 5l7 7-7 7"
                                       />
-                                    </div>
-                                    <DropdownMenuSeparator />
-                                    {interBankAccounts
-                                      .filter((interBankAccount) =>
-                                        `${interBankAccount.attribute1} - ${interBankAccount.attribute2} - ${interBankAccount.attribute3}`
-                                          .toLowerCase()
-                                          .includes(searchQuery.toLowerCase())
-                                      )
-                                      .map((interBankAccount) => (
-                                        <DropdownMenuItem
-                                          key={interBankAccount.attribute2}
-                                          onClick={() => {
-                                            setSelectedTransferToInterBank(interBankAccount);
-                                            const selectedValue = `${interBankAccount.attribute1} - ${interBankAccount.attribute2}`;
-                                            formInterBank.setValue('transferTo', selectedValue, { shouldValidate: true });
-                                            formInterBank.setValue('toBank', interBankAccount.attribute3);
-                                            setToBankValue(interBankAccount.attribute3);
-                                          }}
-                                          className="flex items-center justify-between px-4 py-2 space-x-4"
-                                        >
-                                          <div className="flex items-center space-x-4">
-                                            <img
-                                              src="https://via.placeholder.com/40"
-                                              alt={interBankAccount.attribute1}
-                                              className="w-10 h-10 rounded-full"
-                                            />
-                                            <div>
-                                              <p className="text-sm font-medium text-black">{interBankAccount.attribute1}</p>
-                                              <p className="text-xs font-bold text-gray-400">{interBankAccount.attribute2}</p>
-                                              <p className="text-xs font-bold text-gray-400">{interBankAccount.attribute3}</p>
+                                    </svg>
+                                  </button>
+                                </div>
+                                <div className="w-1/2 relative">
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button
+                                        type="button"
+                                        className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${error ? 'border-red-500' : 'border-gray-800'
+                                          } focus:outline-none hover:border-white transition-all duration-200`}
+                                      >
+                                        {selectedTransferToInterBank?.attribute1 && selectedTransferToInterBank?.attribute2
+                                          ? `${selectedTransferToInterBank.attribute1} - ${selectedTransferToInterBank.attribute2}`
+                                          : 'Select Beneficiary Account'}
+                                      </button>
+
+                                    </DropdownMenuTrigger>
+
+                                    <DropdownMenuContent className="w-full">
+                                      <DropdownMenuLabel>Select an Account</DropdownMenuLabel>
+                                      <DropdownMenuSeparator />
+                                      <div className="px-2 py-2">
+                                        <input
+                                          type="text"
+                                          placeholder="Search accounts..."
+                                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded-md focus:outline-none rounded-xl focus:ring focus:ring-blue-500 text-white"
+                                          value={searchQuery}
+                                          onChange={(e) => setSearchQuery(e.target.value)}
+                                        />
+                                      </div>
+                                      <DropdownMenuSeparator />
+                                      {recipientInterBank
+                                        .filter((interBankAccount) =>
+                                          `${interBankAccount.bank_name} - ${interBankAccount.reminder_name} - ${interBankAccount.account_number}`
+                                            .toLowerCase()
+                                            .includes(searchQuery.toLowerCase())
+                                        )
+                                        .map((interBankAccount) => (
+                                          <DropdownMenuItem
+                                            key={interBankAccount.account_number}
+                                            onClick={() => {
+                                              setSelectedTransferToInterBank({
+                                                attribute1: interBankAccount.reminder_name,
+                                                attribute2: interBankAccount.account_number,
+                                              });
+                                              const selectedValue = `${interBankAccount.reminder_name} - ${interBankAccount.account_number}`;
+                                              formInterBank.setValue('transferToInterbank', selectedValue, { shouldValidate: true });
+                                              formInterBank.setValue('toBankInterbank', interBankAccount.bank_name);
+                                              setSelectedBankId(interBankAccount.bank_id);
+                                              setToBankValue(interBankAccount.bank_name);
+                                              setInputValue(interBankAccount.account_number)
+                                              field.onChange(`${interBankAccount.reminder_name} - ${interBankAccount.account_number}`);
+                                            }}
+                                            className="flex items-center justify-between px-4 py-2 space-x-4"
+                                          >
+                                            <div className="flex items-center space-x-4">
+                                              <img
+                                                src="https://via.placeholder.com/40"
+                                                alt={interBankAccount.account_number}
+                                                className="w-10 h-10 rounded-full"
+                                              />
+                                              <div>
+                                                <p className="text-sm font-medium text-black">{interBankAccount.reminder_name}</p>
+                                                <p className="text-xs font-bold text-gray-400">{interBankAccount.account_number}</p>
+                                                <p className="text-xs font-bold text-gray-400">{interBankAccount.bank_name}</p>
+                                              </div>
                                             </div>
-                                          </div>
-                                          <span className="text-gray-400 text-sx">{'>'}</span>
-                                        </DropdownMenuItem>
-                                      ))}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
+                                            <span className="text-gray-400 text-sx">{'>'}</span>
+                                          </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+
                               </div>
-
-                            </div>
-                          </FormControl>
-
-                          {fieldState.error && (
-                            <FormMessage className="text-red-500 text-sm">
-                              {fieldState.error.message}
-                            </FormMessage>
-                          )}
-                        </FormItem>
-                      )}
+                            </FormControl>
+                            {fieldState.error && (
+                              <FormMessage className="text-red-500 text-sm">
+                                {fieldState.error.message}
+                              </FormMessage>
+                            )}
+                          </FormItem>
+                        )
+                      }}
                     />
-
 
                     <FormField
                       control={formInterBank.control}
-                      name="saveBeneficiary"
+                      name="saveBeneficiaryInterbank"
                       render={({ field }) => (
                         <FormItem>
                           <div className="flex items-center mt-4 space-x-3">
                             {/* Checkbox */}
                             <input
                               type="checkbox"
-                              id="saveAsBeneficiary"
+                              id="saveAsBeneficiaryInterbank"
                               className="w-5 h-5 text-blue-500 rounded"
                               checked={isSaveBeneficiary}
                               onChange={(e) => {
@@ -999,19 +1263,28 @@ const TransferUI = () => {
                                 field.onChange(e.target.checked);
                               }}
                             />
-                            <label htmlFor="saveAsBeneficiary" className="text-white text-sm">
+                            <label htmlFor="saveAsBeneficiaryInterbank" className="text-white text-sm">
                               Save as Beneficiary
                             </label>
 
-                            {/* Input Memory (hiển thị khi checkbox được chọn) */}
                             {isSaveBeneficiary && (
-                              <input
-                                type="text"
-                                placeholder="Enter memory"
-                                className="form-input w-1/2 bg-gray-900 text-white rounded-xl px-4 py-2 border border-gray-800 focus:outline-none"
-                                value={memory}
-                                onChange={(e) => setMemory(e.target.value)}
-                              />
+                              <div className="flex-1">
+                                <input
+                                  type="text"
+                                  placeholder="Enter memory"
+                                  className={`form-input w-full bg-gray-900 text-white rounded-xl px-4 py-2 border ${formInterBank.formState.errors.saveBeneficiaryInterbank ? "border-red-500" : "border-gray-800"} focus:outline-none`}
+                                  value={memory}
+                                  onChange={(e) => {
+                                    setMemory(e.target.value);
+                                    formInterBank.clearErrors("saveBeneficiaryInterbank");
+                                  }}
+                                />
+                                {formInterBank.formState.errors.saveBeneficiaryInterbank && (
+                                  <p className="text-red-500 text-sm mt-1">
+                                    {formInterBank.formState.errors.saveBeneficiaryInterbank.message}
+                                  </p>
+                                )}
+                              </div>
                             )}
                           </div>
                         </FormItem>
@@ -1022,7 +1295,7 @@ const TransferUI = () => {
                       {/* Amount */}
                       <FormField
                         control={formInterBank.control}
-                        name="amount"
+                        name="amountInterbank"
                         render={({ field }) => (
                           <FormItem className="flex-1">
                             <label className="block text-gray-400 text-sm mb-1">Amount</label>
@@ -1042,7 +1315,7 @@ const TransferUI = () => {
                       {/* Purpose */}
                       <FormField
                         control={formInterBank.control}
-                        name="purpose"
+                        name="purposeInterbank"
                         render={({ field }) => (
                           <FormItem className="flex-1">
                             <label className="block text-gray-400 text-sm mb-1">Purpose</label>
@@ -1064,7 +1337,7 @@ const TransferUI = () => {
                     {/* Fee Payer */}
                     <FormField
                       control={formInterBank.control}
-                      name="feePayer"
+                      name="feePayerInterbank"
                       render={({ field }) => (
                         <FormItem>
                           <label className="block text-gray-400 text-sm mb-2">Fee Payer</label>
@@ -1083,17 +1356,17 @@ const TransferUI = () => {
                                 <span className="text-white text-sm">Sender Pay</span>
                               </label>
 
-                              {/* Checkbox for Receiver Pay */}
+                              {/* Checkbox for Recipient Pay */}
                               <label className="flex items-center space-x-2">
                                 <input
-                                  type="radio" value="Receiver Pay"
-                                  checked={field.value === "Receiver Pay"}
+                                  type="radio" value="Recipient Pay"
+                                  checked={field.value === "Recipient Pay"}
                                   onChange={() =>
-                                    field.onChange(field.value === "Receiver Pay" ? "" : "Receiver Pay")
+                                    field.onChange(field.value === "Recipient Pay" ? "" : "Recipient Pay")
                                   }
                                   className="w-5 h-5 text-blue-500 rounded"
                                 />
-                                <span className="text-white text-sm">Receiver Pay</span>
+                                <span className="text-white text-sm">Recipient Pay</span>
                               </label>
                             </div>
                           </FormControl>
@@ -1105,80 +1378,182 @@ const TransferUI = () => {
                     {/* Submit Button */}
                     <Button
                       type="submit"
-                      className="w-full py-3 bg-[#B9FF66] text-black font-bold rounded-full"
+                      className="w-full py-3 bg-[#B9FF66] text-black font-bold rounded-full hover:bg-white"
                     >
                       Transfer
                     </Button>
                   </form>
                 </Form>
-              ) : (
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmitInterBankOTP)} className="w-full space-y-6">
+              ) : activeStep === "otp" ? (
+                <Form {...formOtpInterBank}>
+                  <form onSubmit={formOtpInterBank.handleSubmit(onSubmitInterBankOTP)} className="w-full space-y-6">
                     <div className="mt-6">
-                      <h3 className="text-white text-lg text-center font-bold mb-4">Confirm Transfer</h3>
+                      <h3 className="text-white text-lg text-center font-bold mb-4">Enter OTP</h3>
 
-                      {/* Các thông tin xác nhận được căn chỉnh với justify-between */}
+                      {/* Source Account */}
                       <div className="mb-4 flex justify-between">
-                        <p className="text-gray-400">Transfer From:</p>
-                        <p className="text-white font-bold">{formData?.transferFrom}</p>
+                        <p className="text-gray-400">Source Account:</p>
+                        <p className="text-white font-bold">{formOtpInterBank.getValues("our_bank_account_number")}</p>
                       </div>
 
+                      {/* Beneficiary Account */}
                       <div className="mb-4 flex justify-between">
                         <p className="text-gray-400">Transfer To:</p>
-                        <div className="flex items-center space-x-2">
-                          <p className="text-white  font-bold">{formData?.toBank}</p>
-                          <span className="text-gray-400 text-sx">{'-'}</span>
-                          <p className="text-white font-bold">{formData?.transferTo}</p>
-                        </div>
+                        <p className="text-white font-bold">
+                          {formOtpInterBank.getValues("client_bank_name")} - {formOtpInterBank.getValues("client_bank_account_number")}
+                        </p>
                       </div>
 
+                      {/* Amount */}
                       <div className="mb-4 flex justify-between">
                         <p className="text-gray-400">Amount:</p>
-                        <p className="text-white font-bold">{formData?.amount} VND</p>
+                        <p className="text-white font-bold">
+                          {formOtpInterBank
+                            .getValues("amount")
+                            ?.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}
+                        </p>
                       </div>
 
+                      {/* Remarks */}
                       <div className="mb-4 flex justify-between">
                         <p className="text-gray-400">Purpose:</p>
-                        <p className="text-white font-bold">{formData?.purpose}</p>
+                        <p className="text-white font-bold">{formOtpInterBank.getValues("remarks")}</p>
                       </div>
 
+                      {/* Payment Method */}
                       <div className="mb-4 flex justify-between">
                         <p className="text-gray-400">Fee Payer:</p>
-                        <p className="text-white font-bold">{formData?.feePayer}</p>
+                        <p className="text-white font-bold">
+                          {(() => {
+                            const paymentMethod = formOtpInterBank.getValues("payment_method");
+                            const amount = formOtpInterBank.getValues("amount");
+                            if (paymentMethod === "Recipient Pay") {
+                              return `0đ (Recipient Pay)`;
+                            } else if (paymentMethod === "Sender Pay") {
+                              const fee = amount * 0.1;
+                              return `${fee.toLocaleString("vi-VN", { style: "currency", currency: "VND" })} (Sender Pay)`;
+                            }
+                            return "Unknown";
+                          })()}
+                        </p>
                       </div>
 
-                      {/* Nhập OTP */}
-                      <FormField
-                        control={form.control}
-                        name="otp"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                placeholder="Enter OTP"
-                                {...field}
-                                className="w-full py-5 px-6 bg-white text-black text-lg rounded-xl border border-gray-800 focus:outline-none"
-                              />
-                            </FormControl>
-                            <FormMessage className="text-red-500 text-sm" />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="border-t border-gray-600 my-4"></div>
 
+                      {/* Total Amount */}
+                      <div className="mb-4 flex justify-between">
+                        <p className="text-gray-400">Total Amount:</p>
+                        <p className="text-green-400 font-bold text-xl">
+                          {(() => {
+                            const paymentMethod = formOtpInterBank.getValues("payment_method");
+                            const amount = formOtpInterBank.getValues("amount");
+                            if (paymentMethod === "Recipient Pay") {
+                              return `${amount.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}`;
+                            } else if (paymentMethod === "Sender Pay") {
+                              const fee = amount * 0.1;
+                              const total = amount + fee;
+                              return `${total.toLocaleString("vi-VN", { style: "currency", currency: "VND" })}`;
+                            }
+                            return "Unknown";
+                          })()}
+                        </p>
+                      </div>
 
-                      {/* Nút Verify */}
+                      <div className="border-t border-gray-600 my-4"></div>
+
+                      <div className="mb-4 flex flex-col items-center">
+                        <p className="text-white text-sm mb-4">Enter OTP sending to your email!</p>
+                        <FormField
+                          control={formOtpInterBank.control}
+                          name="otp"
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormControl>
+                                <ReactCodeInput
+                                  type="number"
+                                  fields={6}
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                  inputStyle={{
+                                    width: "2.5rem",
+                                    height: "2.5rem",
+                                    margin: "0.5rem",
+                                    fontSize: "1.5rem",
+                                    textAlign: "center",
+                                    borderRadius: "0.5rem",
+                                    color: "black",
+                                    border: fieldState.error
+                                      ? "2px solid red"
+                                      : "1px solid green",
+                                    backgroundColor: fieldState.error ? "#fee2e2" : "#d1fae5",
+                                  }}
+                                />
+                              </FormControl>
+                              {fieldState.error && (
+                                <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                              )}
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+
+                      {/* Submit Button */}
                       <Button
                         type="submit"
-                        className="mt-4 w-full py-3 bg-blue-500 text-white font-bold rounded-full"
+                        className="mt-4 w-full py-3 bg-blue-500 text-white font-bold rounded-full hover:bg-white hover:text-black"
                       >
                         Verify
                       </Button>
                     </div>
-
                   </form>
-                </Form>
-              ))
+                </Form>)
+                :
+                (
+                  <div className="text-center">
+                    <div className="flex flex-col items-center space-y-4">
+                      {/* Icon Success */}
+                      <div className="bg-green-500 p-4 rounded-full">
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          className="h-8 w-8 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+
+                      {/* Message */}
+                      <h2 className="text-xl font-bold text-green-500">Transfer Successful!</h2>
+                      <p className="text-2xl font-bold text-white">{formOtpInterBank.getValues("amount")} VND</p>
+                      <p className="text-gray-400">{new Date().toLocaleTimeString()} - {new Date().toLocaleDateString()}</p>
+
+                      {/* Account Details */}
+                      <div className="text-white">
+                        <p className="font-bold">{formOtpInterBank.getValues("client_bank_name")} - {formOtpInterBank.getValues("client_bank_account_number")}</p>
+                        <p className="text-gray-400">{formOtpInterBank.getValues("remarks")}</p>
+                      </div>
+
+                      {/* Button */}
+                      <button
+                        onClick={() => {
+                          setActiveStep("transfer"); // Reset về bước đầu
+                          formInterBank.reset(); // Reset form transfer
+                          formOtpInterBank.reset(); // Reset form OTP
+                        }}
+                        className="mt-6 py-3 px-6 bg-[#B9FF66] text-black font-bold rounded-full"
+                      >
+                        New Transaction
+                      </button>
+                    </div>
+                  </div>
+                ))
           }
         </div>
         <div className="mt-8 p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">

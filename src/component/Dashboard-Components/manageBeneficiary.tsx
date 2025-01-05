@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { DataTable } from "../Resusable/dataTable";
-import { beneficiaryColumns, inBeneficiaries } from "../Resusable/columns";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { beneficiaryColumns } from "../Resusable/columns";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { interactDialog } from "@/libs/slices/sliceTask";
 import { Button } from "@/components/ui/button";
@@ -19,6 +18,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuLab
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { fetchBankById, fetchExternalAccount, fetchExternalBanks } from "@/libs/slices/sliceExternalBank";
 
 const SaveBeneficiarySameBankSchema = z.object({
     account_number: z.string().nonempty({ message: "Please enter account number." }),
@@ -26,9 +26,9 @@ const SaveBeneficiarySameBankSchema = z.object({
 });
 
 const TransferSchemaInterBank = z.object({
-    toBank: z.string().nonempty({ message: "Please select a bank." }),
-    transferTo: z.string().nonempty({ message: "Please select a beneficiary account." }),
-    memorableName: z.string().nonempty({ message: "Memorable name is required." }),
+    bank_id: z.string().nonempty({ message: "Please select a bank." }),
+    account_number: z.string().nonempty({ message: "Please select a beneficiary account." }),
+    reminder_name: z.string().nonempty({ message: "Memorable name is required." }),
 });
 
 const ManageBeneficiaryUI = () => {
@@ -37,69 +37,83 @@ const ManageBeneficiaryUI = () => {
     const { isOpenDialog } = useAppSelector(state => state.task);
     const [selectedBeneficiarySameBank, setSelectedBeneficiarySameBank] = useState({ attribute1: '', attribute2: '' });
     const [searchQuery, setSearchQuery] = useState("");
-    const [accountNumberInput, setAccountNumberInput] = useState('');
-    const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState({ attribute1: '', attribute2: '' });
+    const [selectedTransferToInterBank, setSelectedTransferToInterBank] = useState<{ attribute1: string; attribute2: string } | null>(null);
     const { error, accountInfo } = useAppSelector(state => state.account);
     const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
-    const [inBeneficiaries, setInBeneficiaries] = useState([]);
+
+    type RecipientWithName = {
+        id: string;
+        identity: {
+            name: string;
+            phone: string;
+            avt: string;
+        };
+        bank: string;
+        account_number: string;
+        reminder_name: string;
+    };
+
+    const [inBeneficiaries, setInBeneficiaries] = useState<RecipientWithName[]>([]);
+    const [selectedBankId, setSelectedBankId] = useState("");
 
     useEffect(() => {
-      const fetchRecipientsWithNames = async () => {
-        if (!recipients || recipients.length === 0) return;
-  
-        const recipientsWithNames = await Promise.all(
-            recipients.map(async (recipient) => {
-            try {
-              const data = await dispatch(fetchTransactionTarget(recipient.account_number)).unwrap();
-              const bankName = recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : recipient.bank_id;
+        const fetchRecipientsWithNames = async () => {
+            if (!recipients || recipients.length === 0) return;
 
-              return {
-                id: recipient.account_number,
-                identity: {
-                  name: data.name,
-                  phone: "Not Available",
-                  avt: "https://lh4.googleusercontent.com/proxy/-BvxvtLr9pzhfvVNx1CNxelUNQxeRwpfgobPfy46t5-c6_4kMIM_UUraqWpbcTNljDQQEUckfIVgZv00cDJMc3ZZdyOgrp5-PK5t8eDHCkNxupTIE4C7VIB4",
-                },
-                bank: bankName,
-                account_number: recipient.account_number,
-                reminder_name: recipient.reminder_name,
-              };
-            } catch (error) {
-              console.error(`Error fetching name for account_number ${recipient.account_number}:`, error);
-              return {
-                id: recipient.account_number,
-                identity: {
-                  name: "Unknown",
-                  phone: "Not Available",
-                  avt: "https://randomuser.me/api/portraits/placeholder.jpg",
-                },
-                bank: recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : "Unknown Bank",
-                account_number: recipient.account_number,
-                reminder_name: recipient.reminder_name,
-              };
-            }
-          })
-        );
-        setInBeneficiaries(recipientsWithNames);
-      };
-  
-      fetchRecipientsWithNames();
+            const recipientsWithNames = await Promise.all(
+                recipients.map(async (recipient) => {
+                    try {
+                        let accountData: { name?: string } | null = null; // Khai báo kiểu dữ liệu chính xác
+                        let bankName = "";
+                        if (recipient.bank_id !== "6750a0c9a9dc441ad3fbfb9f") {
+                            accountData = await dispatch(fetchExternalAccount({
+                                account_number: recipient.account_number,
+                                bank_id: recipient.bank_id,
+                            })).unwrap();
+
+                            // Sử dụng slice để fetch bank name
+                            const bankData = await dispatch(fetchBankById(recipient.bank_id)).unwrap();
+                            bankName = bankData.name || "Unknown Bank";
+                        } else {
+                            // Fetch từ transaction target
+                            accountData = await dispatch(fetchTransactionTarget(recipient.account_number)).unwrap();
+                            bankName = "Nhom10Bank";
+                        }
+
+                        return {
+                            id: recipient.account_number,
+                            identity: {
+                                name: accountData?.name || "Unknown",
+                                phone: "Not Available",
+                                avt: "https://lh4.googleusercontent.com/proxy/-BvxvtLr9pzhfvVNx1CNxelUNQxeRwpfgobPfy46t5-c6_4kMIM_UUraqWpbcTNljDQQEUckfIVgZv00cDJMc3ZZdyOgrp5-PK5t8eDHCkNxupTIE4C7VIB4",
+                            },
+                            bank: bankName,
+                            account_number: recipient.account_number,
+                            reminder_name: recipient.reminder_name,
+                        };
+                    } catch (error) {
+                        console.error(`Error fetching name for account_number ${recipient.account_number}:`, error);
+
+                        return {
+                            id: recipient.account_number,
+                            identity: {
+                                name: "Unknown",
+                                phone: "Not Available",
+                                avt: "https://randomuser.me/api/portraits/placeholder.jpg",
+                            },
+                            bank: recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : "Unknown Bank",
+                            account_number: recipient.account_number,
+                            reminder_name: recipient.reminder_name,
+                        };
+                    }
+                })
+            );
+
+            setInBeneficiaries(recipientsWithNames);
+        };
+
+        fetchRecipientsWithNames();
     }, [dispatch, recipients]);
-
-
-    const banks = [
-        { attribute1: "MT BANK" },
-        { attribute1: "TP BANK" },
-        { attribute1: "AB BANK" },
-        { attribute1: "CD BANK" },
-    ];
-
-    const interBankAccounts = [
-        { attribute1: "NGUYEN LAM HAI", attribute2: "123456", attribute3: "MT BANK" },
-        { attribute1: "PHAN THAI KHANG", attribute2: "22222", attribute3: "KP BANK" },
-        { attribute1: "NGUYEN PHU MINH BAO", attribute2: "233434", attribute3: "TP BANK" },
-        { attribute1: "NGUYEN ANH KHOA", attribute2: "35667", attribute3: "MB BANK" },
-    ];
 
     const saveBeneficiarySameBankForm = useForm({
         resolver: zodResolver(SaveBeneficiarySameBankSchema),
@@ -113,16 +127,11 @@ const ManageBeneficiaryUI = () => {
     const formInterBank = useForm({
         resolver: zodResolver(TransferSchemaInterBank),
         defaultValues: {
-            transferFrom: "John Paul - 2222222222222222",
-            toBank: "",
-            transferTo: "",
-            memorableName: "",
+            bank_id: "",
+            account_number: "",
+            reminder_name: "",
         },
     });
-
-    function onSubmitInterBank(data: any) {
-        console.log("Form Submitted:", data);
-    }
 
     const setActiveTabAndCloseDropdowns = (tab: string) => {
         setSamebankOrInterbankTab(tab);
@@ -130,46 +139,6 @@ const ManageBeneficiaryUI = () => {
 
 
     const [toBankValue, setToBankValue] = useState('');
-
-    useEffect(() => {
-        const subscription = formInterBank.watch((value) => {
-            setToBankValue(value.toBank || '');
-        });
-        return () => subscription.unsubscribe();
-    }, [formInterBank]);
-
-    const handleTransferToInputChangeInterBank = (event) => {
-        const inputAccountNumber = event.target.value.trim();
-        setAccountNumberInput(inputAccountNumber);
-
-        const toBankValue = formInterBank.watch('toBank');
-
-        if (inputAccountNumber === "") {
-            setSelectedTransferToInterBank({ attribute1: "", attribute2: "" });
-            formInterBank.setValue("transferTo", "");
-            return;
-        }
-
-        const matchedAccount = interBankAccounts.find(
-            (account) =>
-                account.attribute2 === inputAccountNumber && account.attribute3 === toBankValue
-        );
-
-        if (matchedAccount) {
-            setSelectedTransferToInterBank(matchedAccount);
-            formInterBank.setValue(
-                "transferTo",
-                `${matchedAccount.attribute1} - ${matchedAccount.attribute2}`
-            );
-            formInterBank.clearErrors("transferTo"); // Xóa lỗi nếu có
-        } else {
-            setSelectedTransferToInterBank({ attribute1: "", attribute2: inputAccountNumber });
-            formInterBank.setError("transferTo", {
-                type: "manual",
-                message: "Account number is not valid or does not match the selected bank.",
-            });
-        }
-    };
 
     const [inputValue, setInputValue] = useState<string>("");
 
@@ -222,18 +191,16 @@ const ManageBeneficiaryUI = () => {
     };
 
 
-    function onSubmitSaveBeneficiarySameBank(data: { account_number: string; bank_id: string; reminder_name: string }) {
+    function onSubmitSaveBeneficiary(data: { account_number: string; bank_id: string; reminder_name: string }) {
         dispatch(saveBeneficiary(data))
             .unwrap()
             .then((response: any) => {
                 console.log("Beneficiary saved successfully:", response);
-    
                 toast.success("Beneficiary saved successfully!");
-    
+                saveBeneficiarySameBankForm.reset();
                 dispatch(fetchRecipients())
                     .unwrap()
                     .then((recipients) => {
-                        console.log("Updated recipient list:", recipients);
                         setInBeneficiaries(
                             recipients.map((recipient: any) => ({
                                 id: recipient.account_number,
@@ -257,6 +224,60 @@ const ManageBeneficiaryUI = () => {
                 toast.error("Failed to save Beneficiary!");
             });
     }
+
+    const { banks } = useAppSelector((state) => state.externalBanks);
+
+    useEffect(() => {
+        dispatch(fetchExternalBanks());
+    }, [dispatch]);
+
+    const handleInputChangeInterBank = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setInputValue(e.target.value);
+          formInterBank.setValue("account_number", "", { shouldValidate: true });
+          formInterBank.setValue("bank_id", "", { shouldValidate: true });
+          setSelectedBankId("");
+          setToBankValue("");
+          setSelectedTransferToInterBank({ attribute1: "", attribute2: "" });
+          formInterBank.clearErrors("account_number");
+    };
+
+    const handleFetchTargetDataInterBank = () => {
+        const trimmedInput = inputValue.trim();
+
+        if (!trimmedInput) {
+            formInterBank.setError("account_number", {
+                type: "manual",
+                message: "Please enter a valid account number",
+            });
+            return;
+        }
+
+        if (formInterBank.getValues("bank_id") == "") {
+            console.log("bank is empty")
+            formInterBank.setError("bank_id", {
+                type: "manual",
+                message: "Please select bank",
+            });
+        }
+
+        dispatch(fetchExternalAccount({ account_number: trimmedInput, bank_id: selectedBankId }))
+            .unwrap()
+            .then((data) => {
+                setSelectedTransferToInterBank({
+                    attribute1: data.name,
+                    attribute2: data.account_number,
+                });
+
+                formInterBank.setValue("account_number", data.account_number);
+            })
+            .catch(() => {
+                toast.error("No account found! Please fetch or select valid account");
+                formInterBank.setError("account_number", {
+                    type: "manual",
+                    message: "Please enter a valid account number",
+                });
+            });
+    };
 
     return (
         <div className="text-white font-sans flex">
@@ -294,12 +315,12 @@ const ManageBeneficiaryUI = () => {
 
                     {samebankOrInterbankTab === "sameBank" ? (
                         <Form {...saveBeneficiarySameBankForm}>
-                            <form onSubmit={saveBeneficiarySameBankForm.handleSubmit(onSubmitSaveBeneficiarySameBank)} className='w-full space-y-6 transition-all duration-1000 transform'>
+                            <form onSubmit={saveBeneficiarySameBankForm.handleSubmit(onSubmitSaveBeneficiary)} className='w-full space-y-6 transition-all duration-1000 transform'>
                                 {/* Transfer To */}
                                 <FormField
                                     control={saveBeneficiarySameBankForm.control}
                                     name="account_number"
-                                    render={({ field, fieldState }) => (
+                                    render={({ fieldState }) => (
                                         <FormItem>
                                             <label className="block text-white text-sm mb-2">Account Number</label>
                                             <FormControl>
@@ -401,18 +422,19 @@ const ManageBeneficiaryUI = () => {
                         : (
                             <Form {...formInterBank}>
                                 <form onSubmit={formInterBank.handleSubmit(
-                                    onSubmitInterBank,
+                                    onSubmitSaveBeneficiary,
                                     (errors) => {
                                         console.error("Validation errors:", errors);
                                     }
                                 )} className="w-full space-y-6">
                                     <FormField
                                         control={formInterBank.control}
-                                        name="toBank"
-                                        render={({ field, fieldState }) => {
+                                        name="bank_id"
+                                        render={({ fieldState }) => {
+                                            console.log("get state error: ", fieldState.error)
                                             return (
                                                 <FormItem>
-                                                    <label className="block text-white text-sm mb-2">Select Bank</label>
+                                                    <label className="block text-white text-sm mb-2">To Bank</label>
                                                     <FormControl>
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild>
@@ -440,28 +462,26 @@ const ManageBeneficiaryUI = () => {
                                                                 </div>
                                                                 <DropdownMenuSeparator />
                                                                 {banks
-                                                                    .filter((bank) =>
-                                                                        bank.attribute1.toLowerCase().includes(searchQuery.toLowerCase())
-                                                                    )
                                                                     .map((bank) => (
                                                                         <DropdownMenuItem
-                                                                            key={bank.attribute1}
+                                                                            key={bank.name}
                                                                             onClick={() => {
-                                                                                formInterBank.setValue('toBank', bank.attribute1);
-                                                                                formInterBank.setValue('transferTo', '');
-                                                                                setAccountNumberInput('');
+                                                                                formInterBank.setValue("bank_id", bank.bank_id, { shouldValidate: true });
                                                                                 setSelectedTransferToInterBank(null);
+                                                                                setToBankValue(bank.name);
+                                                                                console.log("tobankvalue", toBankValue);
+                                                                                setSelectedBankId(bank.bank_id);
                                                                             }}
                                                                             className="flex items-center justify-between px-4 py-2 space-x-4"
                                                                         >
                                                                             <div className="flex items-center space-x-4">
                                                                                 <img
                                                                                     src={'https://via.placeholder.com/40'}
-                                                                                    alt={bank.attribute1}
+                                                                                    alt={bank.name}
                                                                                     className="w-10 h-10 rounded-full"
                                                                                 />
                                                                                 <div>
-                                                                                    <p className="text-sm font-medium text-black">{bank.attribute1}</p>
+                                                                                    <p className="text-sm font-medium text-black">{bank.name}</p>
                                                                                 </div>
                                                                             </div>
                                                                             <span className="text-gray-400 text-sx">{'>'}</span>
@@ -483,42 +503,79 @@ const ManageBeneficiaryUI = () => {
 
                                     <FormField
                                         control={formInterBank.control}
-                                        name="transferTo"
-                                        render={({ field, fieldState }) => (
-                                            <FormItem>
-                                                <label className="block text-white text-sm mb-2">Select Account</label>
-                                                <FormControl>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Enter account number"
-                                                        value={selectedTransferToInterBank?.attribute2 || accountNumberInput} // Hiển thị attribute2 hoặc giá trị nhập
-                                                        className={`w-full form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? 'border-red-500' : 'border-gray-800'
-                                                            } focus:outline-none`}
-                                                        onChange={(e) => {
-                                                            setAccountNumberInput(e.target.value);
-                                                            handleTransferToInputChangeInterBank(e);
-                                                        }}
-                                                    />
-                                                </FormControl>
-
-                                                {fieldState.error && (
-                                                    <FormMessage className="text-red-500 text-sm">
-                                                        {fieldState.error.message}
-                                                    </FormMessage>
-                                                )}
-                                            </FormItem>
-                                        )}
+                                        name="account_number"
+                                        render={({ fieldState }) => {
+                                            console.log("Error State transfer to:", fieldState.error);
+                                            return (
+                                                <FormItem>
+                                                    <label className="block text-white text-sm mb-2">Transfer To</label>
+                                                    <FormControl>
+                                                        <div className="flex justify-between items-center space-x-3">
+                                                            <div className={`relative w-1/2 form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
+                                                                } focus:outline-none`}>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Enter account number"
+                                                                    value={inputValue}
+                                                                    className={`w-full bg-gray-900 text-white rounded-xl focus:outline-none`}
+                                                                    onChange={handleInputChangeInterBank}
+                                                                    onKeyDown={(e) => {
+                                                                        if (e.key === "Enter") handleFetchTargetDataInterBank();
+                                                                    }}
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleFetchTargetDataInterBank}
+                                                                    className="absolute inset-y-0 right-0 flex items-center px-3 text-gray-400 hover:text-white focus:outline-none"
+                                                                >
+                                                                    <svg
+                                                                        xmlns="http://www.w3.org/2000/svg"
+                                                                        className="h-5 w-5"
+                                                                        fill="none"
+                                                                        viewBox="0 0 24 24"
+                                                                        stroke="currentColor"
+                                                                    >
+                                                                        <path
+                                                                            strokeLinecap="round"
+                                                                            strokeLinejoin="round"
+                                                                            strokeWidth={2}
+                                                                            d="M5 12h14M12 5l7 7-7 7"
+                                                                        />
+                                                                    </svg>
+                                                                </button>
+                                                            </div>
+                                                            <div className="w-1/2 relative">
+                                                                <button
+                                                                    type="button"
+                                                                    className={`w-full form-select bg-gray-900 text-white rounded-xl px-4 py-2 border ${error ? 'border-red-500' : 'border-gray-800'
+                                                                        } focus:outline-none hover:border-white transition-all duration-200`}
+                                                                >
+                                                                    {selectedTransferToInterBank?.attribute1 && selectedTransferToInterBank?.attribute2
+                                                                        ? `${selectedTransferToInterBank.attribute1} - ${selectedTransferToInterBank.attribute2}`
+                                                                        : 'Account Name - Account Number'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </FormControl>
+                                                    {fieldState.error && (
+                                                        <FormMessage className="text-red-500 text-sm">
+                                                            {fieldState.error.message}
+                                                        </FormMessage>
+                                                    )}
+                                                </FormItem>
+                                            )
+                                        }}
                                     />
                                     <FormField
                                         control={formInterBank.control}
-                                        name="memorableName"
+                                        name="reminder_name"
                                         render={({ field, fieldState }) => (
                                             <FormItem>
-                                                <label className="block text-white text-sm mb-2">Memorable Name</label>
+                                                <label className="block text-white text-sm mb-2">Reminder Name</label>
                                                 <FormControl>
                                                     <input
                                                         type="text"
-                                                        placeholder="Enter memorable name"
+                                                        placeholder="Enter reminder name"
                                                         value={field.value || ""}
                                                         className={`w-full form-input bg-gray-900 text-white rounded-xl px-4 py-2 border ${fieldState.error ? "border-red-500" : "border-gray-800"
                                                             } focus:outline-none`}
@@ -547,7 +604,6 @@ const ManageBeneficiaryUI = () => {
                         )
                     }
                 </div>
-                {/* Beneficiary table */}
                 <div className="container mx-auto py-10">
                     <Dialog open={isOpenDialog} onOpenChange={(data) => {
                         console.log(data);

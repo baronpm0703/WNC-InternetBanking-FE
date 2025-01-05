@@ -2,11 +2,14 @@
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import timeStampHelper from "@/helper/convertTimeStamp";
 import { useAppDispatch } from "@/libs/hooks";
-import { openDialog } from "@/libs/slices/sliceTask";
+import { selectCustomerById } from "@/libs/slices/sliceAccount";
+import { openDetailDialog, openDialog } from "@/libs/slices/sliceTask";
+import { selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react";
+import { ArrowUpDown, MoreHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export type Payment = {
@@ -23,20 +26,36 @@ export type Identity = {
 }
 
 export type Transaction = {
-  id: string,
   identity: Identity,
-  date: string,
-  amount: number,
-  transactionID: string,
   status: "Received" | "Transfered"
+  id: string
+  transactionID: string
+  bankInfo: string
+  bank_sender_id: string
+  bank_recipient_id: string
+  sender_info: {
+    account_number: string
+    name: string
+  }
+  recipient_info: {
+    account_number: string
+    name: string
+  }
+  payment_method: "Sender Pay" | "Recipient Pay"
+  amount: number
+  transaction_date: string
+  isInterBank_transaction: boolean
+  remarks: string
 }
 
 export type customerAccount = {
   id: string,
   identity: Identity,
   date: string,
-  email: number,
+  email: string,
+  phone: string,
   accountNumber: string,
+  accountBalance: number
 }
 
 export type Debt = {
@@ -307,23 +326,25 @@ export const transactionHistory: Transaction[] = [
       phone: "0123456789",
       avt: "https://randomuser.me/api/portraits/med/men/75.jpg"
     },
-    date: "Apr 20, 9:30 AM",
+    bank_recipient_id: "123456789",
+    bank_sender_id: "123456789",
+    sender_info: {
+      account_number: "123456789",
+      name: "Nguyen Van A"
+    },
+    bankInfo: "IBP",
+    recipient_info: {
+      account_number: "123456789",
+      name: "Nguyen Van B"
+    },
+    payment_method: "Sender Pay",
+    isInterBank_transaction: false,
+    remarks: "Transfer",
+    transaction_date: "Apr 20, 9:30 AM",
     transactionID: "xaa12",
     amount: 100.3,
     status: "Received"
-  },
-  {
-    id: "7d8e1d42",
-    identity: {
-      name: "Nguyen Van C",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/74.jpg"
-    },
-    date: "Apr 20, 9:30 AM",
-    transactionID: "xaa12",
-    amount: 125.5,
-    status: "Transfered"
-  },
+  }
 ]
 
 export const beneficiaryColumns: ColumnDef<Beneficiary>[] = [
@@ -445,8 +466,20 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     }
   },
   {
-    accessorKey: "transactionID",
-    header: () => <p className="text-left text-[#E0FFBC]">Transaction ID</p>,
+    accessorKey: "date",
+    header: () => <p className="text-left text-[#E0FFBC]">Transaction Date</p>,
+    cell: ({ row }) => {
+      const date = row.original.transaction_date;
+      return <div className="text-left font-medium">{date}</div>
+    }
+  },
+  {
+    accessorKey: "bankInfo",
+    header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
+  },
+  {
+    accessorKey: "payment_method",
+    header: () => <p className="text-left text-[#E0FFBC]">Payment Method</p>,
   },
   {
     accessorKey: "amount",
@@ -466,17 +499,15 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => {
       const status = row.original.status;
       return (
-        <div className={
-          `text-center w-2/3 px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
-        `}>
+        <div className={`
+          text-center w-2/3 px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
+        `}
+        >
           <p>{status}</p>
+          
         </div>
       )
     }
-  },
-  {
-    accessorKey: "date",
-    header: () => <p className="text-left text-[#E0FFBC]">Date</p>,
   },
   {
     id: "actions",
@@ -484,8 +515,9 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
       const dispatch = useAppDispatch();
       const transaction = row.original; // Access Data's row
       const handleDetail = () => {
-        console.log("Click detail", transaction.id);
-        // dispatch(openDialog());
+        console.log("Click detail", transaction);
+        dispatch(openDetailDialog());
+        dispatch(selectTransaction(transaction));
       }
       return (
         <Button variant="ghost" className=" px-5 border rounded-3xl" onClick={handleDetail}>
@@ -496,67 +528,16 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   }
 ]
 
-export const customerAccounts: customerAccount[] = [
-  {
-    id: "728ed52f",
-    identity: {
-      name: "Nguyen Van A",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits"
-    },
-    date: "Apr 20, 9:30 AM",
-    email: 100.3,
-    accountNumber: "123456789"
-  },
-  {
-    id: "489e1d42",
-    identity: {
-      name: "Nguyen Van B",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits"
-    },
-    date: "Apr 20, 9:30 AM",
-    email: 125.5,
-    accountNumber: "123456789"
-  },
-  {
-    id: "7d8e1d42",
-    identity: {
-      name: "Nguyen Van C",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits"
-    },
-    date: "Apr 20, 9:30 AM",
-    email: 125.5,
-    accountNumber: "123456789"
-  }
-]
-
 export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   {
-    accessorKey: "select",
-    header: ({ table }) => (
-      <Checkbox
-        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(checked) => table.toggleAllPageRowsSelected(!!checked)}
-        aria-label="Select all rows"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
-        checked={row.getIsSelected()}
-        onCheckedChange={(checked) => row.toggleSelected(!!checked)}
-        aria-label="Select this row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false
-  },
-  {
     accessorKey: "identity",
-    header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
+    header: ({column}) => 
+      <div 
+        className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+      </div>,
     cell: ({ row }) => {
       const identity = row.original.identity;
       return (
@@ -571,7 +552,15 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   },
   {
     accessorKey: "email",
-    header: () => <p className="text-left text-[#E0FFBC]">Email</p>,
+    header: ({}) => 
+      <div 
+      className="text-left text-[#E0FFBC] ">
+        Email
+      </div>,
+  },
+  {
+    accessorKey: "phone",
+    header: () => <p className="text-left text-[#E0FFBC]">Phone</p>,
   },
   {
     accessorKey: "accountNumber",
@@ -579,7 +568,18 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   },
   {
     accessorKey: "date",
-    header: () => <p className="text-left text-[#E0FFBC]">Date</p>,
+    header: ({column}) => 
+      <div 
+        className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
+        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+        Date
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </div>,
+    cell: ({row}) => {
+      const date = row.original.date;
+      return <div className="text-left font-medium">{timeStampHelper.formatTimestamp(date)}</div>
+    }
   },
   {
     id: "actions",
@@ -588,27 +588,28 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
       const debt = row.original; // Access Data's row
       const navigate = useNavigate();
       const handleDeposit = () => {
-        console.log("Deposit debt", debt.id);
+        console.log("Deposit debt", debt);
+        dispatch(selectCustomerById(parseInt(debt.id)));
         navigate("/dashboard/deposit-money")
       }
       const handleViewTransaction = () => {
-        dispatch(openDialog());
+        dispatch(selectCustomerById(parseInt(debt.id)));
         navigate("/dashboard/customer-transactions-history")
       }
       return (
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="h-8 w-8 p-0">
-              <span className="sr-only">Open menu</span>
               <span className="sr-only">Action</span>
               <MoreHorizontal className="w-5 h-5" />
-            </Button >
-          </DropdownMenuTrigger >
-          <DropdownMenuContent align="end" className="bg-white p-2 rounded-xl z-10 text-black">
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-black p-2 rounded-xl z-10">
             <DropdownMenuItem onClick={handleDeposit} onSelect={(e) => e.preventDefault()}>Deposit Money</DropdownMenuItem>
             <DropdownMenuItem onClick={handleViewTransaction} onSelect={(e) => e.preventDefault()}>View Transaction History</DropdownMenuItem>
-          </DropdownMenuContent >
-        </DropdownMenu >
+          </DropdownMenuContent>
+        </DropdownMenu>
+
       )
     }
   }
