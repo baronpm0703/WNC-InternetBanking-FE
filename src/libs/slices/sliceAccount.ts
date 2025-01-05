@@ -5,6 +5,7 @@ export type RecipientInfo = {
   account_number: string
   bank_id: string
   reminder_name: string
+  recipient_list?: RecipientInfo[];
 }
 export type DepositInfo = {
   amount: number

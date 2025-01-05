@@ -72,10 +72,10 @@ const CustomerTransactionUI = () => {
     return transactions.filter((item: TransactionRecord) => {
       const { transaction_date } = item;
       let isValid = true;
-      if (date?.from) {
+      if (isValid && date?.from) {
         isValid = timeStampHelper.formatTimestamp(transaction_date || "") >= timeStampHelper.formatTimestamp(date.from.toISOString()) ? true : false;
       }
-      if (date?.to) {
+      if (isValid && date?.to) {
         isValid = timeStampHelper.formatTimestamp(transaction_date || "") <= timeStampHelper.formatTimestamp(date.to.toISOString()) ? true : false;
       }
       return isValid;

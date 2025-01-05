@@ -25,11 +25,37 @@ export const createInternalTransaction = createAsyncThunk(
                     },
                 }
             );
-            return response.data; // Dữ liệu trả về từ API
+            return response.data;
         } catch (error: any) {
             console.error("Error creating internal transaction:", error);
             return rejectWithValue(
                 error.response?.data?.message || "Failed to create internal transaction."
+            );
+        }
+    }
+);
+
+export const createExternalTransaction = createAsyncThunk(
+    "transaction/createExternal",
+    async (
+        { transactionData, clientId }: { transactionData: any; clientId: string },
+        { rejectWithValue }
+    ) => {
+        try {
+            const response = await apiClient.post(
+                `${destination_server}/api/send-to-external-balance`,
+                transactionData,
+                {
+                    headers: {
+                        "x-client-id": clientId,
+                    },
+                }
+            );
+            return response.data; // Dữ liệu trả về từ API
+        } catch (error: any) {
+            console.error("Error creating external transaction:", error);
+            return rejectWithValue(
+                error.response?.data?.message || "Failed to create external transaction."
             );
         }
     }
@@ -236,6 +262,19 @@ export const sliceTransaction = createSlice({
             .addCase(createInternalTransaction.rejected, (state, action) => {
                 state.status = "failed";
                 state.error = action.payload as string || "An unexpected error occurred.";
+            })
+            .addCase(createExternalTransaction.pending, (state) => {
+                state.status = "loading";
+                state.error = null;
+            })
+            .addCase(createExternalTransaction.fulfilled, (state, action) => {
+                state.status = "succeeded";
+                state.transactions.push(action.payload);
+                state.error = null;
+            })
+            .addCase(createExternalTransaction.rejected, (state, action) => {
+                state.status = "failed";
+                state.error = action.payload as string;
             });
     }
 })
