@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, FieldErrors } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,9 +21,23 @@ import { Input } from "@/components/ui/input";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { fetchAccountInfo, fetchTransactionTarget, saveBeneficiary } from "@/libs/slices/sliceAccount";
 import timeStampHelper from "@/helper/convertTimeStamp";
-import { createExternalTransaction, createInternalTransaction, sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
+import { createExternalTransaction, createInternalTransaction, fetchAccountTransaction, sendOtpTransactionSameBank, TransactionRecord } from "@/libs/slices/sliceTransaction";
 import { toast } from "react-toastify";
 import { fetchBankById, fetchExternalAccount, fetchExternalBanks } from "@/libs/slices/sliceExternalBank";
+import { DialogContent } from "@/components/ui/dialog";
+import { Transaction, transactionColumns } from "../Resusable/columns";
+import converTypeHelper from "@/helpers/convertTypeHelper";
+import { DataTable } from "../Resusable/dataTable";
+import { Dialog } from "@/components/ui/dialog";
+import { interactDetailDialog } from "@/libs/slices/sliceTask";
+import { DateRange } from "react-day-picker";
+import { PopoverContent } from "@/components/ui/popover";
+import { PopoverTrigger } from "@/components/ui/popover";
+import { Popover } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
 
 const TransferSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
@@ -81,6 +95,7 @@ const OtpFormSchemaInterBank = z.object({
 });
 
 const TransferUI = () => {
+  const { isOpenDetailDialog } = useAppSelector(state => state.task);
   const [activeTab, setActiveTab] = useState("sameBank");
   const [activeStep, setActiveStep] = useState("transfer"); // New state for tracking steps
   const navigate = useNavigate();
@@ -186,6 +201,15 @@ const TransferUI = () => {
     },
   });
 
+  const [displayedTransactions, setDisplayedTransactions] = useState<Transaction[]>([]);
+
+  useEffect(() => {
+    setDisplayedTransactions(
+      converTypeHelper.convertToCustomerTransacrionColumns(filterByDate, accountInfo.account_number).slice(-5)
+    );
+  }, [accountInfo.account_balance]);
+
+
   function onSubmitSameBank(data: any) {
     const [, ownAccountNumber] = data.transferFrom.split(" - ");
     const [targetName, targetAccountNumber] = data.transferTo.split(" - ");
@@ -199,11 +223,11 @@ const TransferUI = () => {
     }
 
     formOtpSameBank.setValue("own_account_number", ownAccountNumber);
-    formOtpSameBank.setValue("otp", ""); // OTP sẽ được nhập trong bước sau
+    formOtpSameBank.setValue("otp", "");
     formOtpSameBank.setValue("target.account_number", targetAccountNumber);
     formOtpSameBank.setValue("target.name", targetName);
     formOtpSameBank.setValue("payment_method", data.feePayer);
-    formOtpSameBank.setValue("amount", parseFloat(data.amount)); // Đảm bảo là số
+    formOtpSameBank.setValue("amount", parseFloat(data.amount));
     formOtpSameBank.setValue("remarks", data.purpose);
 
     console.log("Updated formOtpSameBank:", formOtpSameBank.getValues());
@@ -244,10 +268,24 @@ const TransferUI = () => {
     dispatch(createInternalTransaction(data))
       .unwrap()
       .then((response: any) => {
-        console.log("Transaction created successfully:", response);
-        toast.success("Transaction created successfully!");
-        setActiveStep("transferSuccess");
-        dispatch(fetchAccountInfo());
+        console.log("Transaction response:", response);
+
+        if (response.isOTPValid && response.success) {
+          toast.success("Transaction created successfully!");
+          setActiveStep("transferSuccess");
+          dispatch(fetchAccountInfo());
+          dispatch(fetchAccountTransaction(accountInfo.account_number))
+            .unwrap()
+            .then((transactions) => {
+              setDisplayedTransactions(
+                converTypeHelper.convertToCustomerTransacrionColumns(transactions, accountInfo.account_number).slice(-5)
+              );
+            });
+        } else {
+          const errorMessage = response.message || "Transaction failed!";
+          toast.error(errorMessage);
+          console.error("Transaction validation failed:", errorMessage);
+        }
       })
       .catch((error) => {
         console.error("Error creating transaction:", error);
@@ -318,10 +356,16 @@ const TransferUI = () => {
       })
     ).unwrap()
       .then((response: any) => {
-        console.log("External Transaction created successfully:", response);
-        toast.success("External Transaction created successfully!");
-        setActiveStep("transferSuccess");
-        dispatch(fetchAccountInfo());
+        if (response.isOTPValid && response.success) {
+          console.log("External Transaction created successfully:", response);
+          toast.success("External Transaction created successfully!");
+          setActiveStep("transferSuccess");
+          dispatch(fetchAccountInfo());
+        } else {
+          const errorMessage = response.message || "Transaction failed!";
+          toast.error(errorMessage);
+          console.error("Transaction validation failed:", errorMessage);
+        }
       })
       .catch((error) => {
         console.error("Error creating External transaction:", error);
@@ -519,6 +563,39 @@ const TransferUI = () => {
     });
   };
 
+  const { transactions, loading, selectedTransaction } = useAppSelector(state => state.transaction);
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: undefined,
+    to: undefined,
+  })
+
+  const filterByDate = useMemo(() => {
+    return transactions.filter((item: TransactionRecord) => {
+      const { transaction_date } = item;
+      let isValid = true;
+      if (isValid && date?.from) {
+        isValid = timeStampHelper.formatTimestamp(transaction_date || "") >= timeStampHelper.formatTimestamp(date.from.toISOString()) ? true : false;
+      }
+      if (isValid && date?.to) {
+        isValid = timeStampHelper.formatTimestamp(transaction_date || "") <= timeStampHelper.formatTimestamp(date.to.toISOString()) ? true : false;
+      }
+      return isValid;
+    });
+  }, [date, transactions]);
+
+  useEffect(() => {
+    if (accountInfo.account_number) {
+      console.log("Fetching Transaction History");
+      dispatch(fetchAccountTransaction(accountInfo.account_number))
+      .unwrap()
+      .then((transactions) => {
+        setDisplayedTransactions(
+          converTypeHelper.convertToCustomerTransacrionColumns(transactions, accountInfo.account_number).slice(-5)
+        );
+      });
+    }
+    console.log("CALLED!")
+  }, [accountInfo.account_number]);
 
   return (
     <div className="text-white font-sans flex">
@@ -926,41 +1003,41 @@ const TransferUI = () => {
                     {/* OTP Input */}
                     <div className="border-t border-gray-600 my-4"></div>
 
-                      <div className="mb-4 flex flex-col items-center">
-                        <p className="text-white text-sm mb-4">Enter OTP sending to your email!</p>
-                        <FormField
-                          control={formOtpSameBank.control}
-                          name="otp"
-                          render={({ field, fieldState }) => (
-                            <FormItem>
-                              <FormControl>
-                                <ReactCodeInput
-                                  type="number"
-                                  fields={6}
-                                  value={field.value || ""}
-                                  onChange={field.onChange}
-                                  inputStyle={{
-                                    width: "2.5rem",
-                                    height: "2.5rem",
-                                    margin: "0.5rem",
-                                    fontSize: "1.5rem",
-                                    textAlign: "center",
-                                    borderRadius: "0.5rem",
-                                    color: "black",
-                                    border: fieldState.error
-                                      ? "2px solid red"
-                                      : "1px solid green",
-                                    backgroundColor: fieldState.error ? "#fee2e2" : "#d1fae5",
-                                  }}
-                                />
-                              </FormControl>
-                              {fieldState.error && (
-                                <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
-                              )}
-                            </FormItem>
-                          )}
-                        />
-                      </div>
+                    <div className="mb-4 flex flex-col items-center">
+                      <p className="text-white text-sm mb-4">Enter OTP sending to your email!</p>
+                      <FormField
+                        control={formOtpSameBank.control}
+                        name="otp"
+                        render={({ field, fieldState }) => (
+                          <FormItem>
+                            <FormControl>
+                              <ReactCodeInput
+                                type="number"
+                                fields={6}
+                                value={field.value || ""}
+                                onChange={field.onChange}
+                                inputStyle={{
+                                  width: "2.5rem",
+                                  height: "2.5rem",
+                                  margin: "0.5rem",
+                                  fontSize: "1.5rem",
+                                  textAlign: "center",
+                                  borderRadius: "0.5rem",
+                                  color: "black",
+                                  border: fieldState.error
+                                    ? "2px solid red"
+                                    : "1px solid green",
+                                  backgroundColor: fieldState.error ? "#fee2e2" : "#d1fae5",
+                                }}
+                              />
+                            </FormControl>
+                            {fieldState.error && (
+                              <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                            )}
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
                     {/* Submit Button */}
                     <Button
@@ -1556,9 +1633,47 @@ const TransferUI = () => {
                 ))
           }
         </div>
-        <div className="mt-8 p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
+        <div className="mt-8 p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Transaction</h3>
+            <div className={` gap-2 text-black absolute left-[calc(210%)] top-0 mt-1`}>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant={"outline"}
+                    className={cn(
+                      "w-[300px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon />
+                    {date?.from ? (
+                      date.to ? (
+                        <>
+                          {format(date.from, "LLL dd, y")} -{" "}
+                          {format(date.to, "LLL dd, y")}
+                        </>
+                      ) : (
+                        format(date.from, "LLL dd, y")
+                      )
+                    ) : (
+                      <span>Pick a date</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    initialFocus
+                    mode="range"
+                    defaultMonth={date?.from}
+                    selected={date}
+                    onSelect={setDate}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
             <button className="flex bg-black items-center text-sm font-medium hover:underline" onClick={() => navigate('/dashboard/transaction-history')}>
               See All
               <span className="ml-2 flex justify-center items-center w-6 h-6 bg-black border border-white text-white rounded-full">
@@ -1579,105 +1694,69 @@ const TransferUI = () => {
               </span>
             </button>
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b text-green-400 border-gray-700">
-                <th className="py-2">Name</th>
-                <th className="py-2">Date</th>
-                <th className="py-2">Amount</th>
-                <th className="py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  John
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$80.09</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  John
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$80.09</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="container mx-auto py-3">
+            <DataTable columns={transactionColumns} data={displayedTransactions.slice(-5)} loading={loading} filterable={false} />
+            <Dialog
+              open={isOpenDetailDialog}
+              onOpenChange={(data) => {
+                console.log(data);
+                dispatch(interactDetailDialog(data));
+              }}
+            >
+              {/* <DialogTitle>Transaction Detail</DialogTitle> */}
+              <DialogContent className="w-full max-w-md rounded-lg p-6 bg-white shadow-lg">
+                <div className="flex flex-col items-center">
+                  {/* Success Icon */}
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-8 w-8 text-green-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+
+                  {/* Title and Amount */}
+                  <h2 className="text-xl font-bold text-gray-800 mt-4">{selectedTransaction?.status === "Transfered" ? "Transfer Successfull!" : "Receive Successfull!"}</h2>
+                  <p className="text-green-600 text-3xl font-extrabold mt-2">{currencyHelper.convertToCurrency(selectedTransaction?.amount || 0)}</p>
+                  <p className="text-gray-500 mt-2 text-sm">{timeStampHelper.formatTimestamp(selectedTransaction?.transaction_date || "")}</p>
+
+                  {/* Bank Information */}
+                  <div className="mt-4 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <img
+                        src="/path/to/dong-a-logo.png" // Replace with your actual logo URL
+                        alt="Dong A Bank"
+                        className="w-6 h-6"
+                      />
+                      <p className="text-gray-800 font-semibold">{selectedTransaction?.bankInfo}</p>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{
+                      selectedTransaction?.status === "Received" ?
+                        selectedTransaction?.sender_info.account_number != "employee_placeholder" ?
+                          `${selectedTransaction?.sender_info.account_number} - ${selectedTransaction?.sender_info.name}` : `${selectedTransaction?.sender_info.name}`
+                        : `${selectedTransaction?.recipient_info.account_number} - ${selectedTransaction?.recipient_info.name}`
+                    }</p>
+                    <p className="text-sm text-gray-500">{selectedTransaction?.remarks}</p>
+                  </div>
+
+                  {/* New Transaction Button */}
+                  <button
+                    className="mt-6 bg-green-500 text-white text-sm font-semibold py-2 px-6 rounded-lg hover:bg-green-600"
+                    onClick={() => console.log("Start a new transaction")}
+                  >
+                    New Transaction
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
-      </div >
+      </div>
       <div className="w-1/3 pl-4">
         <div className="rounded-3xl shadow-md mb-8">
           <h3 className="text-xl font-bold mb-4">Account Overview</h3>

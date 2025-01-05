@@ -500,7 +500,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
       const status = row.original.status;
       return (
         <div className={`
-          text-center w-2/3 px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
+          text-center w-full px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
         `}
         >
           <p>{status}</p>
