@@ -92,41 +92,48 @@ const CustomerTransactionUI = () => {
             {/* Filter */}
             <div className="mb-2 mx-auto container">
               <h1 className="text-2xl font-bold mb-3">Customer Transaction History</h1>
-              <div className="container max-w-sm 2xl:max-w-xl relative items-center">
-                <Command className="rounded-lg border shadow-md w-full flex flex-row">
-                  {/* Input field */}
-                  <CommandInput
-                    className="CommandInput"
-                    placeholder="Type Account Name To Search..."
-                    onValueChange={setInputValue}
-                    onClick={() => {
-                      setOpen(true);
-                    }} // Toggle Account Number
-                  />
+              <div className="container w-full relative flex flex-row gap-6 justify-between">
+                <div className="flex items-center gap-4 w-2/3">
+                  {/* Input Field */}
+                  <div className="flex-grow relative">
+                    <Command className="rounded-lg border shadow-md w-full flex flex-row">
+                      {/* Input field */}
+                      <CommandInput
+                        className="CommandInput"
+                        placeholder="Type Account Name To Search..."
+                        onValueChange={setInputValue}
+                        onClick={() => {
+                          setOpen(true);
+                        }} // Toggle Account Number
+                      />
 
-                  <div
-                    className="absolute left-[calc(110%)] rounded-full bg-[#91DC6C] py-3 px-4 min-w-[60%]"
-                    style={{ boxShadow: "-1px 4px 0px rgb(255, 255, 255)" }}>
-                    {selectedCustomer && `${selectedCustomer.name} - ${selectedCustomer.account_number}` || "Select A Customer Account"}
+                      {/* Account List */}
+                      <CommandList className="absolute rounded-lg top-[calc(110%)] w-full z-20 bg-white" ref={inputRef}>
+                        {open &&
+                          filteredAccounts.length > 0 &&
+                          filteredAccounts.map((account: AccountInfo, index) => (
+                            <CommandItem
+                              key={index}
+                              value={account.name}
+                              onSelect={() => handleCommandItemClick(account)}
+                            >
+                              {account.name} - {account.account_number}
+                            </CommandItem>
+                          ))}
+                      </CommandList>
+                    </Command>
                   </div>
-
-                  {/* Account List */}
-                  <CommandList className="absolute rounded-lg top-[calc(110%)] w-full z-20 bg-white" ref={inputRef}>
-                    {open &&
-                      filteredAccounts.length > 0 &&
-                      filteredAccounts.map((account: AccountInfo, index) => (
-                        <CommandItem
-                          key={index}
-                          value={account.name}
-                          onSelect={() => handleCommandItemClick(account)}
-                        >
-                          {account.name} - {account.account_number}
-                        </CommandItem>
-                      ))}
-                  </CommandList>
-                </Command>
+                  <div
+                    className="flex items-center justify-center rounded-lg bg-[#91DC6C] text-black py-2 px-4 shadow-lg text-sm min-w-[50%]"
+                    style={{ boxShadow: "-1px 4px 0px rgb(255, 255, 255)" }}
+                  >
+                    {selectedCustomer
+                      ? `${selectedCustomer.name} - ${selectedCustomer.account_number}`
+                      : "Select A Customer Account"}
+                  </div>
+                </div>
                 {/* Date Picker */}
-                <div className={` gap-2 text-black absolute left-[calc(210%)] top-0 mt-1`}>
+                <div className={'gap-2 text-black'}>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
