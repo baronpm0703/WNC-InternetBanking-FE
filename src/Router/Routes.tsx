@@ -5,6 +5,8 @@ import CustomerTransactionUI from "@/component/Dashboard-Components/customerTran
 import DashboardUI from "@/component/Dashboard-Components/dashboard";
 import DebtReminderUI from "@/component/Dashboard-Components/debtReminders";
 import DepositUI from "@/component/Dashboard-Components/deposit";
+import EmployeeAccountUI from "@/component/Dashboard-Components/employeeAccount";
+import EmployeeTransactionUI from "@/component/Dashboard-Components/employeeTransactions";
 import ManageBeneficiaryUI from "@/component/Dashboard-Components/manageBeneficiary";
 import ProfileUI from "@/component/Dashboard-Components/profile";
 import TransactionUI from "@/component/Dashboard-Components/transactions";
@@ -42,6 +44,10 @@ export const router = createBrowserRouter([
         element: <Navigate to="/dashboard/customer-account" replace />,
       },
       {
+        path: "Admin",
+        element: <Navigate to="/dashboard/employee-account" replace />,
+      },
+      {
         path: "dashboard",
         element: <Dashboard />,
         children: [
@@ -57,6 +63,8 @@ export const router = createBrowserRouter([
           { path: "customer-account", element: <CustomerAccountUI /> },
           { path: "deposit-money", element: <DepositUI /> },
           { path: "customer-transactions-history", element: <CustomerTransactionUI /> },
+          { path: "employee-account", element: <EmployeeAccountUI /> },
+          { path: "employee-transactions-history", element: <EmployeeTransactionUI /> },
         ],
       },
     ],

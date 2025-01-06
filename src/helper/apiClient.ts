@@ -32,7 +32,7 @@ apiClient.interceptors.response.use(
     const state = root.getState();
     const localToken = localStorage.getItem("token");
     const token: AuthToken | null = state.auth.token ? state.auth.token : localToken ? JSON.parse(localToken) : null;
-    if (error.response?.status === 401) console.log("AccessToken expired: ", token);
+    if (error.response?.status === 401) console.log("AccessToken expired: ", token, error.response);
     // Check if error is due to token expiration
     if (
       error.response?.status === 401 &&

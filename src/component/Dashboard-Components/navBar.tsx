@@ -197,6 +197,108 @@ export const DashboardNavBar: React.FC = () => {
               </li>
             </ul>
           </>
+        ) : accountInfo.role === "Admin" ? (
+          <>
+            <ul className="space-y-4">
+              <li>
+                <NavLink
+                  to="employee-account"
+                  end
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Home_dark.svg" // Active state image
+                            : "/svgForWNC/Home_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Employee Account</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="employee-transactions-history"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/User_dark.svg" // Active state image
+                            : "/svgForWNC/User_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Transaction History</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="settings"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Setting_dark.svg" // Active state image
+                            : "/svgForWNC/Setting_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-7 me-3"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+              <li>
+                <NavLink
+                  to="help-center"
+                  className={({ isActive }) =>
+                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <img
+                        src={
+                          isActive
+                            ? "/svgForWNC/Help_dark.svg" // Active state image
+                            : "/svgForWNC/Help_light.svg"  // Inactive state image
+                        }
+                        alt="logo"
+                        className="w-7 h-8 me-3 object-contain"
+                      />
+                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
+            </ul>
+          </>
         ) : (
           <>
             <ul className="space-y-4">

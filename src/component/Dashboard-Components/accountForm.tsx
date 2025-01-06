@@ -5,20 +5,29 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { toast } from "react-toastify";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import { useAppDispatch } from "@/libs/hooks";
 import { interactDialog } from "@/libs/slices/sliceTask";
-import { CreateAccountType, employeeCreateAccount } from "@/libs/slices/sliceAccount";
-const FormSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  name: z.string().min(5, { message: "Fullname must be at least 5 characters long." }),
-  phone: z.string().min(10, { message: "Phone number must be at least 10 characters long." }),
-  password: z.string().min(3, { message: "Password must be at least 3 characters long." }),
-})
-const AccountForm: React.FC<{}> = () => {
+import { AccountInfo, CreateAccountType, employeeCreateAccount } from "@/libs/slices/sliceAccount";
+const createFormSchema = (isEditMode: boolean) =>
+  z.object({
+    email: z.string().email({ message: "Please enter a valid email address." }),
+    name: z.string().min(5, { message: "Fullname must be at least 5 characters long." }),
+    phone: z.string().min(10, { message: "Phone number must be at least 10 characters long." }),
+    password: isEditMode
+      ? z.string().optional() // Optional in edit mode
+      : z.string().min(3, { message: "Password must be at least 3 characters long." }), // Required in create mode
+  });
+const AccountForm: React.FC<{
+  selectedInfo?: AccountInfo | null
+  role?: string,
+  action?: Function,
+  dialogInteraction?: Function
+}> = ({selectedInfo, role, action, dialogInteraction}) => {
   const dispatch = useAppDispatch();
   const [showPassword, setShowPassword] = useState(false);
+  const FormSchema = createFormSchema(!!selectedInfo);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -29,16 +38,27 @@ const AccountForm: React.FC<{}> = () => {
     },
   });
   function onSubmit(data: z.infer<typeof FormSchema>) {
+    console.log(form.formState.errors);
     toast.success("Submit completed");
-    dispatch(interactDialog(false));
-    console.log("Create Account: ", data);
+    if (!dialogInteraction) dispatch(interactDialog(false)); 
+    else dispatch(dialogInteraction(false));
+    console.log("Account: ", data);
     let payload: CreateAccountType = {
       ...data,
-      role: "Customer",
-      username: data.email,
+      role: role ? role : "Customer",
+      username: selectedInfo ? selectedInfo.username :data.email,
     }
-    dispatch(employeeCreateAccount(payload));
+    // console.log("Payload: ", payload);
+    if (!selectedInfo) dispatch(employeeCreateAccount(payload)); 
+    else if (action) dispatch(action(payload));
   }
+  useEffect(() => {
+    if (selectedInfo) {
+      form.setValue("email", selectedInfo.email);
+      form.setValue("name", selectedInfo.name);
+      form.setValue("phone", selectedInfo.phone);
+    }
+  }, [])
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="w-full mb-4">
@@ -72,7 +92,7 @@ const AccountForm: React.FC<{}> = () => {
                   placeholder="Enter your fullname"
                   type="text"
                   {...field}
-                  className="mb-4 w-full px-6 py-6 bg-[#1A1A1A] text-[#626262] border border-[#626262] focus:outline-none focus:border-green-300 rounded-full"
+                  className="mb-4 w-full px-6 py-6 bg-[#1A1A1A] text-[#626262] outline-none focus:outline-none rounded-full"
                 />
               </FormControl>
             </FormItem>
@@ -95,7 +115,7 @@ const AccountForm: React.FC<{}> = () => {
             </FormItem>
           )} />
         {/* Password Field */}
-        <FormField
+        {!selectedInfo && (<FormField
           control={form.control}
           name="password"
           render={({ field }) => (
@@ -127,11 +147,12 @@ const AccountForm: React.FC<{}> = () => {
               </FormControl>
             </FormItem>
           )}
-        />
-        <Button type="submit" className="float-right">Create Account</Button>
+        />)}
+        {/* Submit Button */}
+        <Button type="submit" className="float-right">{selectedInfo ? `Save change`: `Create Account`}</Button>
       </form>
     </Form>
   );
 }
 
-export default AccountForm;
+export default memo(AccountForm);

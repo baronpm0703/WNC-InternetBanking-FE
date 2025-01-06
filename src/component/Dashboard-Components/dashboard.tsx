@@ -2,10 +2,10 @@ import timeStampHelper from "@/helper/convertTimeStamp";
 import currencyHelper from "@/helper/currencyHelper";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { fetchCustomerAccount } from "@/libs/slices/sliceAccount";
-import { useEffect } from "react";
+import { memo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const DashboardUI = () => {
+const DashboardUI = memo(() => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { error, accountInfo } = useAppSelector(state => state.account);
@@ -16,7 +16,7 @@ const DashboardUI = () => {
     }
   }, [accountInfo.role]);
 
-  const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
+  const recipients = accountInfo.recipient_list || [];
 
   return (
     <div className="text-white font-sans flex">
@@ -308,6 +308,6 @@ const DashboardUI = () => {
       </div>
     </div>
   );
-}
+});
 
 export default DashboardUI;
