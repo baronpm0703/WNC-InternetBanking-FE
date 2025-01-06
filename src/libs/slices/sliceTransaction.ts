@@ -57,10 +57,16 @@ export const sendOtpTransactionSameBank = createAsyncThunk(
     }
 );
 
+export type BankInfo = {
+    _id: string,
+    name: string,
+    public_key: string,
+    algorithm: string
+}
 type TransactionByAccount = {
     _id: string
-    bank_sender_id: string
-    bank_recipient_id: string
+    bank_sender_id: string | BankInfo
+    bank_recipient_id: string | BankInfo
     sender_number: string
     recipient_number: string
     payment_method: "Sender Pay" | "Recipient Pay"
@@ -72,8 +78,8 @@ type TransactionByAccount = {
 
 export type TransactionRecord = {
     transactionID: string
-    bank_sender_id: string
-    bank_recipient_id: string
+    bank_sender_id: string | BankInfo
+    bank_recipient_id: string | BankInfo
     sender_info: {
         account_number: string
         name: string
@@ -144,20 +150,20 @@ export const fetchAccountTransaction = createAsyncThunk(
                                     data: { target_data: { name: "Bank Employee Depositor", account_number: "employee_placeholder" } },
                                 });
                     } else {
-                        RecipientPromise = bank_recipient_id != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
+                        RecipientPromise = (bank_recipient_id as string) != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
                             account_number: recipient_number
                         }, {
                             headers: {
-                                "x-client-id": bank_recipient_id
+                                "x-client-id": (bank_recipient_id as string)
                             }
                         }) : apiClient.get('accounts/transaction-target', {
                             params: { account_number: recipient_number },
                         });
-                        SenderPromise = bank_sender_id != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
+                        SenderPromise = (bank_sender_id as string) != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
                             account_number: sender_number
                         }, {
                             headers: {
-                                "x-client-id": bank_sender_id
+                                "x-client-id": (bank_sender_id as string)
                             }
                         }) : apiClient.get('accounts/transaction-target', {
                             params: { account_number: sender_number },
@@ -189,6 +195,83 @@ export const fetchAccountTransaction = createAsyncThunk(
     }
 );
 
+export const fetchSpecialTransaction = createAsyncThunk(
+    "admin/transaction/fetch",
+    async (_: void, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.get("admin/get-external-transaction");
+            console.log("Admin Transaction response: ", response.data);
+            if (!response.data) {
+                return []; // Return an empty array if there's no data
+            }
+
+            // Map over transactions and create promises for recipient and sender info
+            const res = await Promise.all(
+                response.data.map(async (transaction: TransactionByAccount) => {
+                    const { isInterBank_transaction, bank_recipient_id, bank_sender_id, recipient_number, sender_number, _id, ...rest } = transaction;
+
+                    // Fetch recipient and sender details
+                    let RecipientPromise: Promise<any>;
+
+                    let SenderPromise: Promise<any>;
+
+                    if (!isInterBank_transaction) {
+                        RecipientPromise = apiClient.get('accounts/transaction-target', {
+                            params: { account_number: recipient_number },
+                        });
+                        SenderPromise =
+                            sender_number !== "employee_placeholder"
+                                ? apiClient.get('accounts/transaction-target', {
+                                    params: { account_number: sender_number },
+                                })
+                                : Promise.resolve({
+                                    data: { target_data: { name: "Bank Employee Depositor", account_number: "employee_placeholder" } },
+                                });
+                    } else {
+                        RecipientPromise = (bank_recipient_id as BankInfo)._id != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
+                            account_number: recipient_number
+                        }, {
+                            headers: {
+                                "x-client-id": (bank_recipient_id as BankInfo)._id
+                            }
+                        }) : apiClient.get('accounts/transaction-target', {
+                            params: { account_number: recipient_number },
+                        });
+                        SenderPromise = (bank_sender_id as BankInfo)._id != VITE_INTERNAlBANK_ID ? apiClient.post("api/get-external-account", {
+                            account_number: sender_number
+                        }, {
+                            headers: {
+                                "x-client-id": (bank_sender_id as BankInfo)._id
+                            }
+                        }) : apiClient.get('accounts/transaction-target', {
+                            params: { account_number: sender_number },
+                        })
+                    }
+                    // Resolve both promises concurrently
+                    const [RecipientResponse, SenderResponse] = await Promise.all([RecipientPromise, SenderPromise]);
+
+                    // Return the transformed transaction
+                    return {
+                        ...rest,
+                        transactionID: _id,
+                        isInterBank_transaction,
+                        bank_recipient_id,
+                        bank_sender_id,
+                        recipient_info: RecipientResponse.data.target_data ? RecipientResponse.data.target_data : RecipientResponse.data,
+                        sender_info: SenderResponse.data.target_data ? SenderResponse.data.target_data : SenderResponse.data,
+                    };
+                })
+            );
+            return res; // Final resolved array
+        } catch (error: any) {
+            console.error("Transaction error: ", error);
+            return rejectWithValue(
+                error.response?.data || "An unexpected error occurred"
+            );
+        }
+    }
+)
+
 export const sliceTransaction = createSlice({
     initialState,
     name: "transaction",
@@ -203,6 +286,21 @@ export const sliceTransaction = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            .addCase(fetchSpecialTransaction.pending, (state) => {
+                state.error = null;
+                state.loading = true;
+            })
+            .addCase(fetchSpecialTransaction.fulfilled, (state, action) => {
+                state.transactions = action.payload;
+                state.error = null;
+                state.loading = false;
+            })
+            .addCase(fetchSpecialTransaction.rejected, (state, action) => {
+                state.error = action.payload as string;
+                state.transactions = [];
+                state.loading = false;
+                console.error("Admin Fetch Transaction error: ", action.payload);
+            })
             .addCase(fetchAccountTransaction.pending, (state) => {
                 state.error = null;
                 state.loading = true;

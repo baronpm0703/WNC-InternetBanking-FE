@@ -208,7 +208,9 @@ const CustomerTransactionUI = () => {
                       alt="Dong A Bank"
                       className="w-6 h-6"
                     />
-                    <p className="text-gray-800 font-semibold">{selectedTransaction?.bankInfo}</p>
+                    <p className="text-gray-800 font-semibold">{
+                      typeof selectedTransaction?.bankInfo === 'string' ? selectedTransaction?.bankInfo : selectedTransaction?.bankInfo?.name
+                    }</p>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{
                     selectedTransaction?.status === "Received" ?

@@ -6,7 +6,7 @@ import timeStampHelper from "@/helper/convertTimeStamp";
 import { useAppDispatch } from "@/libs/hooks";
 import { selectCustomerById, selectEmployeeById } from "@/libs/slices/sliceAccount";
 import { openDeleteEmployeeDialog, openDetailDialog, openDialog, openEmployeeCreateDialog } from "@/libs/slices/sliceTask";
-import { selectTransaction } from "@/libs/slices/sliceTransaction";
+import { BankInfo, selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, MoreHorizontal } from "lucide-react";
@@ -35,10 +35,11 @@ export type Transaction = {
   identity: Identity,
   status: "Received" | "Transfered"
   id: string
+  bankName?: string
   transactionID: string
-  bankInfo: string
-  bank_sender_id: string
-  bank_recipient_id: string
+  bankInfo: string | BankInfo
+  bank_sender_id: string | BankInfo
+  bank_recipient_id: string | BankInfo
   sender_info: {
     account_number: string
     name: string
@@ -491,6 +492,15 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
   {
     accessorKey: "bankInfo",
     header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
+    cell: ({ row }) => {
+      const bankInfo: string | BankInfo = row.original.bankInfo;
+      if (typeof bankInfo != "string") {
+        return <div className="text-left font-medium">{(bankInfo as BankInfo).name}</div>
+      } else return <div className="text-left font-medium">{bankInfo}</div>
+    }
+  },
+  {
+    accessorKey: "bankName"
   },
   {
     accessorKey: "payment_method",
@@ -515,11 +525,11 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
       const status = row.original.status;
       return (
         <div className={`
-          text-center w-2/3 px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
+          text-center w-full px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
         `}
         >
           <p>{status}</p>
-          
+
         </div>
       )
     }
@@ -535,9 +545,12 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
         dispatch(selectTransaction(transaction));
       }
       return (
-        <Button variant="ghost" className=" px-5 border rounded-3xl" onClick={handleDetail}>
-          Detail
-        </Button>
+        <div className="flex justify-center">
+          <Button variant="ghost" className=" px-5 border rounded-3xl" onClick={handleDetail}>
+            Detail
+          </Button>
+        </div>
+
       )
     }
   }
@@ -546,12 +559,12 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
 export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   {
     accessorKey: "identity",
-    header: ({column}) => 
-      <div 
+    header: ({ column }) =>
+      <div
         className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+        Name
+        <ArrowUpDown className="ml-2 h-4 w-4" />
       </div>,
     cell: ({ row }) => {
       const identity = row.original.identity;
@@ -567,9 +580,9 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   },
   {
     accessorKey: "email",
-    header: ({}) => 
-      <div 
-      className="text-left text-[#E0FFBC] ">
+    header: ({ }) =>
+      <div
+        className="text-left text-[#E0FFBC] ">
         Email
       </div>,
   },
@@ -583,15 +596,15 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   },
   {
     accessorKey: "date",
-    header: ({column}) => 
-      <div 
+    header: ({ column }) =>
+      <div
         className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
+      >
         Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </div>,
-    cell: ({row}) => {
+    cell: ({ row }) => {
       const date = row.original.date;
       return <div className="text-left font-medium">{timeStampHelper.formatTimestamp(date)}</div>
     }
@@ -633,12 +646,12 @@ export const customerAccountColumns: ColumnDef<customerAccount>[] = [
 export const employeeAccountColumns: ColumnDef<employeeAccount>[] = [
   {
     accessorKey: "identity",
-    header: ({column}) => 
-      <div 
+    header: ({ column }) =>
+      <div
         className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Name
-          <ArrowUpDown className="ml-2 h-4 w-4" />
+        Name
+        <ArrowUpDown className="ml-2 h-4 w-4" />
       </div>,
     cell: ({ row }) => {
       const identity = row.original.identity;
@@ -654,9 +667,9 @@ export const employeeAccountColumns: ColumnDef<employeeAccount>[] = [
   },
   {
     accessorKey: "email",
-    header: ({}) => 
-      <div 
-      className="text-left text-[#E0FFBC] ">
+    header: ({ }) =>
+      <div
+        className="text-left text-[#E0FFBC] ">
         Email
       </div>,
   },
@@ -670,15 +683,15 @@ export const employeeAccountColumns: ColumnDef<employeeAccount>[] = [
   },
   {
     accessorKey: "date",
-    header: ({column}) => 
-      <div 
+    header: ({ column }) =>
+      <div
         className="text-left text-[#E0FFBC] flex flex-row items-center cursor-pointer"
         onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-        >
+      >
         Date
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </div>,
-    cell: ({row}) => {
+    cell: ({ row }) => {
       const date = row.original.date;
       return <div className="text-left font-medium">{timeStampHelper.formatTimestamp(date)}</div>
     }

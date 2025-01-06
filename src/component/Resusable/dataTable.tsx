@@ -2,7 +2,8 @@
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import currencyHelper from "@/helper/currencyHelper";
 import { ColumnDef, ColumnFiltersState, flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, SortingState, useReactTable } from "@tanstack/react-table";
 import { CalendarIcon, FilterIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -14,6 +15,7 @@ interface DataTableProps<TData, TValue> {
   loading?: boolean;
   filterFields?: string[];
   filterable?: boolean;
+  calculateKeyWord?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -21,7 +23,8 @@ export function DataTable<TData, TValue>({
   data,
   loading = false,
   filterFields = [],
-  filterable = false
+  filterable = false,
+  calculateKeyWord,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -63,6 +66,12 @@ export function DataTable<TData, TValue>({
     table.setPageSize(5);
   }, [table]);
 
+  const calculateTotal = (key: string) => {
+    return table
+      .getFilteredRowModel()
+      .rows.map((row) => row.original[key] || 0)
+      .reduce((sum, value) => sum + value, 0);
+  };
   return (
     <>
       {filterable && (
@@ -126,6 +135,15 @@ export function DataTable<TData, TValue>({
               </TableRow>
             )}
           </TableBody>
+          {calculateKeyWord && (
+            <TableFooter>
+              <TableRow>
+                <TableCell colSpan={8} className="text-lg text-left">Total</TableCell>
+                <TableCell className="text-center">{currencyHelper.convertToCurrency(calculateTotal(calculateKeyWord || "amount"))}</TableCell>
+              </TableRow>
+            </TableFooter>
+          )}
+
         </Table>
       </div>
       <div className="flex items-center justify-end space-x-2 py-4">

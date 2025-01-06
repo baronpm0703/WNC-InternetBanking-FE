@@ -1,7 +1,8 @@
 import { customerAccount, employeeAccount, Identity, Transaction, AccountRole } from "@/component/Resusable/columns";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import { AccountInfo } from "@/libs/slices/sliceAccount";
-import { TransactionRecord } from "@/libs/slices/sliceTransaction";
+import { BankInfo, TransactionRecord } from "@/libs/slices/sliceTransaction";
+const VITE_INTERNAlBANK_ID = import.meta.env.VITE_INTERNAlBANK_ID;
 
 const converTypeHelper = {
   convertToCustomerAccountColumns: (data: AccountInfo[] | undefined | null) => {
@@ -76,6 +77,40 @@ const converTypeHelper = {
       }
     })
     console.log("Account ", selectedAccountNumber, "have send", senderCount, " have receive: ", receiveCount)
+    return object
+  },
+  convertToAdminransacrionColumns: (data: TransactionRecord[] | undefined | null) => {
+    if (!data) return [];
+    let receiveCount = 0, senderCount = 0;
+    let object: Transaction[] = data.map((item: TransactionRecord, index) => {
+      let status: "Received" | "Transfered" = "Received";
+      let bankInfo: BankInfo = item.bank_sender_id as BankInfo;
+      const random = Math.floor(Math.random() * 100);
+      let identity: Identity = {
+        name: item.sender_info.name,
+        phone: "",
+        avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`
+      }
+      if (VITE_INTERNAlBANK_ID === (item.bank_sender_id as BankInfo)._id) {
+        senderCount++
+        status = "Transfered";
+        bankInfo = item.bank_recipient_id as BankInfo;
+        identity = {
+          name: item.recipient_info.name,
+          phone: "",
+          avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`
+        }
+      } else receiveCount ++;
+      return {
+        ...item,
+        id: index.toString(),
+        status,
+        transaction_date: timeStampHelper.formatTimestamp(item.transaction_date),
+        identity,
+        bankInfo,
+        bankName: bankInfo.name
+      }
+    })
     return object
   }
 }

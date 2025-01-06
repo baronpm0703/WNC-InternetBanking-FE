@@ -6,7 +6,7 @@ import { interactDetailDialog } from "@/libs/slices/sliceTask";
 import { Command, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { AccountInfo, selectCustomer } from "@/libs/slices/sliceAccount";
 import converTypeHelper from "@/helpers/convertTypeHelper";
-import { fetchAccountTransaction, TransactionRecord } from "@/libs/slices/sliceTransaction";
+import { fetchSpecialTransaction, TransactionRecord } from "@/libs/slices/sliceTransaction";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import currencyHelper from "@/helper/currencyHelper";
 import { DataTable } from "../Resusable/dataTable";
@@ -62,11 +62,9 @@ const EmployeeTransactionUI = () => {
   }, [open]);
 
   useEffect(() => {
-    if (selectedCustomer) {
-      console.log("Fetching Transaction History");
-      dispatch(fetchAccountTransaction(selectedCustomer.account_number));
-    }
-  }, [selectedCustomer]);
+    console.log("Fetching Admin Transaction History");
+    dispatch(fetchSpecialTransaction());
+  }, []);
 
   const filterByDate = useMemo(() => {
     return transactions.filter((item: TransactionRecord) => {
@@ -90,87 +88,60 @@ const EmployeeTransactionUI = () => {
         <div className="text-white font-sans flex">
           <div className="flex-1 rounded-3xl">
             {/* Filter */}
-            <div className="mb-2 mx-auto container">
-              <h1 className="text-2xl font-bold mb-3">Customer Transaction History</h1>
-              <div className="container max-w-sm 2xl:max-w-xl relative items-center">
-                <Command className="rounded-lg border shadow-md w-full flex flex-row">
-                  {/* Input field */}
-                  <CommandInput
-                    className="CommandInput"
-                    placeholder="Type Account Name To Search..."
-                    onValueChange={setInputValue}
-                    onClick={() => {
-                      setOpen(true);
-                    }} // Toggle Account Number
-                  />
-
-                  <div
-                    className="absolute left-[calc(110%)] rounded-full bg-[#91DC6C] py-3 px-4 min-w-[60%]"
-                    style={{ boxShadow: "-1px 4px 0px rgb(255, 255, 255)" }}>
-                    {selectedCustomer && `${selectedCustomer.name} - ${selectedCustomer.account_number}` || "Select A Customer Account"}
-                  </div>
-
-                  {/* Account List */}
-                  <CommandList className="absolute rounded-lg top-[calc(110%)] w-full z-20 bg-white" ref={inputRef}>
-                    {open &&
-                      filteredAccounts.length > 0 &&
-                      filteredAccounts.map((account: AccountInfo, index) => (
-                        <CommandItem
-                          key={index}
-                          value={account.name}
-                          onSelect={() => handleCommandItemClick(account)}
-                        >
-                          {account.name} - {account.account_number}
-                        </CommandItem>
-                      ))}
-                  </CommandList>
-                </Command>
-                {/* Date Picker */}
-                <div className={` gap-2 text-black absolute left-[calc(210%)] top-0 mt-1`}>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="date"
-                        variant={"outline"}
-                        className={cn(
-                          "w-[300px] justify-start text-left font-normal",
-                          !date && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon />
-                        {date?.from ? (
-                          date.to ? (
-                            <>
-                              {format(date.from, "LLL dd, y")} -{" "}
-                              {format(date.to, "LLL dd, y")}
-                            </>
-                          ) : (
-                            format(date.from, "LLL dd, y")
-                          )
-                        ) : (
-                          <span>Pick a date</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar
-                        initialFocus
-                        mode="range"
-                        defaultMonth={date?.from}
-                        selected={date}
-                        onSelect={setDate}
-                        numberOfMonths={2}
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
+            <div className="mx-auto container">
+              <h1 className="text-4xl font-bold">External Transaction History</h1>
             </div>
           </div>
         </div>
         {/* Transactions table */}
-        <div className="container mx-auto py-3">
-          <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(filterByDate, selectedCustomer?.account_number)} loading={loading} filterable={false} />
+        <div className="container mx-auto py-2">
+          {/* Date Picker */}
+          <div className={` gap-2 text-black float-right mt-3 me-3`}>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant={"outline"}
+                  className={cn(
+                    "w-[300px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon />
+                  {date?.from ? (
+                    date.to ? (
+                      <>
+                        {format(date.from, "LLL dd, y")} -{" "}
+                        {format(date.to, "LLL dd, y")}
+                      </>
+                    ) : (
+                      format(date.from, "LLL dd, y")
+                    )
+                  ) : (
+                    <span>Pick a date</span>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  initialFocus
+                  mode="range"
+                  defaultMonth={date?.from}
+                  selected={date}
+                  onSelect={setDate}
+                  numberOfMonths={2}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <DataTable
+            columns={transactionColumns}
+            data={converTypeHelper.convertToAdminransacrionColumns(filterByDate)}
+            loading={loading}
+            filterable={true}
+            filterFields={["bankName"]}
+            calculateKeyWord="amount"
+          />
           <Dialog
             open={isOpenDetailDialog}
             onOpenChange={(data) => {
@@ -208,7 +179,9 @@ const EmployeeTransactionUI = () => {
                       alt="Dong A Bank"
                       className="w-6 h-6"
                     />
-                    <p className="text-gray-800 font-semibold">{selectedTransaction?.bankInfo}</p>
+                    <p className="text-gray-800 font-semibold">{
+                      typeof selectedTransaction?.bankInfo === 'string' ? selectedTransaction?.bankInfo : selectedTransaction?.bankInfo?.name
+                    }</p>
                   </div>
                   <p className="text-sm text-gray-600 mt-1">{
                     selectedTransaction?.status === "Received" ?
