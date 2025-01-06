@@ -33,17 +33,17 @@ const converTypeHelper = {
       let bankInfo = item.bank_recipient_id === item.bank_sender_id ? "Internal" : "External";
       const random = Math.floor(Math.random() * 100);
       let identity: Identity = {
-        name: item.sender_info.name,
+        name: item.sender_info?.name || "Unknown Sender",
         phone: "",
-        avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`
+        avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`,
       }
-      if (selectedAccountNumber === item.sender_info.account_number) {
+      if (selectedAccountNumber === item.sender_info?.account_number) {
         senderCount++
         status = "Transfered";
         identity = {
-          name: item.recipient_info.name,
+          name: item.recipient_info?.name || "Unknown Recipient",
           phone: "",
-          avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`
+          avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`,
         }
       } else receiveCount ++;
       return {
