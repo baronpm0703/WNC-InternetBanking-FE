@@ -3,9 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import timeStampHelper from "@/helper/convertTimeStamp";
-import { useAppDispatch } from "@/libs/hooks";
+import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { selectCustomerById, selectEmployeeById } from "@/libs/slices/sliceAccount";
-import { openDeleteEmployeeDialog, openDetailDialog, openDialog, openEmployeeCreateDialog } from "@/libs/slices/sliceTask";
+import { selectDebt } from "@/libs/slices/sliceDebt";
+import { openDeleteEmployeeDialog, openDetailDialog, openDialog, openEmployeeCreateDialog, openRepayModal } from "@/libs/slices/sliceTask";
 import { BankInfo, selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
@@ -72,15 +73,6 @@ export type employeeAccount = {
   email: string,
   phone: string,
   role: AccountRole
-}
-
-export type Debt = {
-  id: string,
-  identity: Identity,
-  date: string,
-  debtReminder_id: string,
-  amount: number,
-  status: "Pending" | "Paid" | "Decline"
 }
 
 export type Beneficiary = {
@@ -190,6 +182,21 @@ export const columns: ColumnDef<Payment>[] = [
   }
 ]
 
+export type Debt = {
+  id: string
+  identity: Identity,
+  status: "Pending" | "Success" | "Canceled"
+  bank_id: string
+  debtID: string
+  debtor_name: string
+  debtee_name: string
+  debtor_number: string
+  debtee_number: string
+  amount: number
+  debtRemind_date: string
+  detail: string
+}
+
 export const inDebts: Debt[] = [
   {
     id: "728ed52f",
@@ -198,38 +205,20 @@ export const inDebts: Debt[] = [
       phone: "0123456789",
       avt: "https://randomuser.me/api/portraits/med/men/75.jpg"
     },
-    date: "Apr 20, 9:30 AM",
-    debtReminder_id: "xaa12",
+    debtee_name:"phan thai khang",
+    debtor_name:"nguyen phu minh bao",
     amount: 100.3,
+    bank_id: "123456789",
+    debtor_number:"123",
+    debtee_number:"234",
+    debtRemind_date: "Apr 20, 9:30 AM",
+    detail: "Transfer",
+    debtID: "xaa12",
     status: "Pending"
-  },
-  {
-    id: "489e1d42",
-    identity: {
-      name: "Nguyen Van B",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/76.jpg"
-    },
-    date: "Apr 20, 9:30 AM",
-    debtReminder_id: "xaa12",
-    amount: 125.5,
-    status: "Paid"
-  },
-  {
-    id: "7d8e1d42",
-    identity: {
-      name: "Nguyen Van C",
-      phone: "0123456789",
-      avt: "https://randomuser.me/api/portraits/med/men/74.jpg"
-    },
-    date: "Apr 20, 9:30 AM",
-    debtReminder_id: "xaa12",
-    amount: 125.5,
-    status: "Decline"
   }
 ]
 
-export const debtColumns: ColumnDef<Debt>[] = [
+export const debteeColumns: ColumnDef<Debt>[] = [
   {
     accessorKey: "select",
     header: ({ table }) => (
@@ -253,27 +242,35 @@ export const debtColumns: ColumnDef<Debt>[] = [
   },
   {
     accessorKey: "identity",
-    header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
+    header: () => <p className="text-left text-[#E0FFBC]">Account</p>,
     cell: ({ row }) => {
       const identity = row.original.identity;
+      const accountNumber = row.original.debtee_number || "Unknown";
+      const debteeName = row.original.debtee_name || "Unknown";
+      const accountInfo = useAppSelector((state) => state.account.accountInfo);
+  
+      const displayAccount = accountNumber === accountInfo.account_number 
+        ? row.original.debtor_number 
+        : accountNumber;
+        
+        const displayName = accountNumber === accountInfo.account_number 
+        ? row.original.debtor_name 
+        : debteeName;
+
       return (
         <div className="flex items-center">
           <img src={identity.avt} alt="avatar" className="w-8 h-8 rounded-full" />
           <div className="ml-2">
-            <p className="text-left font-medium">{identity.name}</p>
-            <p className="text-left text-[#A0AEC0]">{identity.phone}</p>
+            <p className="text-left font-medium">{displayName}</p>
+            <p className="text-left font-sm">{displayAccount}</p>
           </div>
         </div>
-      )
-    }
+      );
+    },
   },
   {
-    accessorKey: "date",
+    accessorKey: "debtRemind_date",
     header: () => <p className="text-left text-[#E0FFBC]">Date</p>,
-  },
-  {
-    accessorKey: "debtReminder_id",
-    header: () => <p className="text-left text-[#E0FFBC]">Reminder ID</p>,
   },
   {
     accessorKey: "amount",
@@ -288,13 +285,17 @@ export const debtColumns: ColumnDef<Debt>[] = [
     }
   },
   {
+    accessorKey: "detail",
+    header: () => <p className="text-left text-[#E0FFBC]">Detail</p>,
+  },
+  {
     accessorKey: "status",
     header: () => <p className="text-left text-[#E0FFBC]">Status</p>,
     cell: ({ row }) => {
       const status = row.original.status;
       return (
         <div className={
-          `text-center text-black px-4 py-1 rounded-md font-medium ${status === "Pending" ? " bg-[#F6E05E]" : status === "Paid" ? "bg-[#68D391]" : "bg-[#F56565]"}
+          `text-center text-black px-4 py-1 rounded-md font-medium ${status === "Pending" ? " bg-[#F6E05E]" : status === "Success" ? "bg-[#68D391]" : "bg-[#F56565]"}
         `}>
           <p>{status}</p>
         </div>
@@ -306,14 +307,20 @@ export const debtColumns: ColumnDef<Debt>[] = [
     id: "actions",
     cell: ({ row }) => {
       const dispatch = useAppDispatch();
-      const debt = row.original; // Access Data's row
+      const debt = row.original;
+      const accountInfo = useAppSelector(state => state.account.accountInfo);
+      const isRepayDisabled = debt.debtee_number === accountInfo.account_number;
+
       const handleRepay = () => {
-        console.log("Repay debt", debt.id);
-      }
+        console.log("Repay debt", debt);
+        dispatch(openRepayModal());
+        dispatch(selectDebt(debt));
+      };
+
       const handleCancel = () => {
-        console.log("Cancel debt", debt.id);
         dispatch(openDialog());
-      }
+      };
+
       return (
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
@@ -323,15 +330,20 @@ export const debtColumns: ColumnDef<Debt>[] = [
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-white p-2 rounded-xl z-10 text-black">
-            <DropdownMenuItem onClick={handleRepay}>Repay Debt</DropdownMenuItem>
-            <DropdownMenuSeparator />
+            {/* Chỉ hiển thị mục Repay Debt nếu không trùng account_number */}
+            {!isRepayDisabled && (
+              <>
+                <DropdownMenuItem onClick={handleRepay}>Repay Debt</DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </>
+            )}
             <DropdownMenuItem onClick={handleCancel} onSelect={(e) => e.preventDefault()}>Cancel</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-
-      )
+      );
     }
   }
+
 ]
 
 export const transactionHistory: Transaction[] = [
@@ -725,6 +737,118 @@ export const employeeAccountColumns: ColumnDef<employeeAccount>[] = [
             <DropdownMenuItem onClick={handleDeleteAccount} onSelect={(e) => e.preventDefault()}>Delete Account</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      )
+    }
+  }
+]
+
+export const debtorColumns: ColumnDef<Transaction>[] = [
+  {
+    accessorKey: "select",
+    header: ({ table }) => (
+      <Checkbox
+        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(checked) => table.toggleAllPageRowsSelected(!!checked)}
+        aria-label="Select all rows"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
+        checked={row.getIsSelected()}
+        onCheckedChange={(checked) => row.toggleSelected(!!checked)}
+        aria-label="Select this row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false
+  },
+  {
+    accessorKey: "identity",
+    header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
+    cell: ({ row }) => {
+      const identity = row.original.identity;
+      return (
+        <div className="flex items-center">
+          <img src={identity.avt} alt="avatar" className="w-8 h-8 rounded-full" />
+          <div className="ml-2">
+            <p className="text-left font-medium">{identity.name}</p>
+          </div>
+        </div>
+      )
+    }
+  },
+  {
+    accessorKey: "date",
+    header: () => <p className="text-left text-[#E0FFBC]">Transaction Date</p>,
+    cell: ({ row }) => {
+      const date = row.original.transaction_date;
+      return <div className="text-left font-medium">{date}</div>
+    }
+  },
+  {
+    accessorKey: "bankInfo",
+    header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
+    cell: ({ row }) => {
+      const bankInfo: string | BankInfo = row.original.bankInfo;
+      if (typeof bankInfo != "string") {
+        return <div className="text-left font-medium">{(bankInfo as BankInfo).name}</div>
+      } else return <div className="text-left font-medium">{bankInfo}</div>
+    }
+  },
+  {
+    accessorKey: "bankName"
+  },
+  {
+    accessorKey: "payment_method",
+    header: () => <p className="text-left text-[#E0FFBC]">Payment Method</p>,
+  },
+  {
+    accessorKey: "amount",
+    header: () => <p className="text-left text-[#E0FFBC]">Amount</p>,
+    cell: ({ row }) => {
+      const amount = parseFloat(row.getValue("amount"));
+      const formatted = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+      }).format(amount);
+      return <div className="text-left font-medium">{formatted}</div>
+    }
+  },
+  {
+    accessorKey: "status",
+    header: () => <p className="text-left text-[#E0FFBC]">Status</p>,
+    cell: ({ row }) => {
+      const status = row.original.status;
+      return (
+        <div className={`
+          text-center w-full px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
+        `}
+        >
+          <p>{status}</p>
+
+        </div>
+      )
+    }
+  },
+  {
+    id: "actions",
+    cell: ({ row }) => {
+      const dispatch = useAppDispatch();
+      const transaction = row.original; // Access Data's row
+      const handleDetail = () => {
+        console.log("Click detail", transaction);
+        dispatch(openDetailDialog());
+        dispatch(selectTransaction(transaction));
+      }
+      return (
+        <div className="flex justify-center">
+          <Button variant="ghost" className=" px-5 border rounded-3xl" onClick={handleDetail}>
+            Detail
+          </Button>
+        </div>
+
       )
     }
   }

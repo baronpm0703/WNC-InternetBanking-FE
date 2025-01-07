@@ -20,6 +20,7 @@ interface TaskState {
     isOpenEmployeeCreateDialog: boolean;
     isOpenDeleteEmployeeDialog: boolean;
     loading: boolean;
+    isRepayModalOpen: boolean;
 }
 const initialState: TaskState = {
     allTask: [],
@@ -30,11 +31,12 @@ const initialState: TaskState = {
     isOpenDeleteEmployeeDialog: false,
     isShowAddTask: false,
     loading: false,
+    isRepayModalOpen: false,
 };
 
 export const insertOne = createAsyncThunk(
     'auth/submit',
-    async (taskInfo: {title: string, description: string}, {rejectWithValue}) => {
+    async (taskInfo: { title: string, description: string }, { rejectWithValue }) => {
         let body = JSON.stringify(taskInfo);
         let token = getCacheToken();
         console.log("Token: ", token);
@@ -57,7 +59,7 @@ export const insertOne = createAsyncThunk(
 )
 export const loadAll = createAsyncThunk(
     'auth/loadAll',
-    async (_, {rejectWithValue}) => {
+    async (_, { rejectWithValue }) => {
         let token = getCacheToken();
         console.log("Token: ", token);
         let response = await fetch(`${destination_server}/tasks`, {
@@ -80,8 +82,8 @@ export const loadAll = createAsyncThunk(
 )
 export const updatedStatusTask = createAsyncThunk(
     'auth/updatedTask',
-    async (taskInfo: {id: number, status: boolean}, {rejectWithValue}) => {
-        let {id, ...body} = taskInfo;
+    async (taskInfo: { id: number, status: boolean }, { rejectWithValue }) => {
+        let { id, ...body } = taskInfo;
         let token = getCacheToken();
         let response = await fetch(`${destination_server}/tasks/status/${id}`, {
             method: 'PUT',
@@ -106,11 +108,11 @@ export const sliceTask = createSlice({
     reducers: {
         showAll: (state) => {
             state.isShowAddTask = !state.isShowAddTask;
-            let {isShowAddTask, allTask} = state;
+            let { isShowAddTask, allTask } = state;
             state.currentTaskList = isShowAddTask ? allTask : [];
         },
         addTask: (state, action) => {
-            let {title, description} = action.payload;
+            let { title, description } = action.payload;
             const newTask: Task = {
                 id: state.allTask[state.allTask.length - 1]?.id + 1 || 1,
                 title: title || "No title",
@@ -122,7 +124,7 @@ export const sliceTask = createSlice({
             console.log("Add new task", newTask);
         },
         updateOneTask: (state, action) => {
-            let {index} = action.payload;
+            let { index } = action.payload;
             let updatedTasks = [...state.allTask];
             updatedTasks[index].status = !updatedTasks[index].status;
             state.allTask = updatedTasks;
@@ -131,7 +133,7 @@ export const sliceTask = createSlice({
             console.log("Update task", updatedTasks[index]);
         },
         filterTasks: (state, action) => {
-            let {value} = action.payload;
+            let { value } = action.payload;
             let filteredData = state.allTask.filter(
                 (task) =>
                     task.title.toLowerCase().includes(value.toLowerCase()) ||
@@ -167,7 +169,16 @@ export const sliceTask = createSlice({
         interactDeleteEmployeeDialog: (state, action) => {
             console.log("Interact delete employee dialog", action.payload);
             state.isOpenDeleteEmployeeDialog = action.payload
-        }
+        },
+        openRepayModal: (state) => {
+            state.isRepayModalOpen = true; 
+        },
+        closeRepayModal: (state) => {
+            state.isRepayModalOpen = false; // Tắt modal trả nợ
+        },
+        interactRepayModal: (state, action) => {
+            state.isRepayModalOpen = action.payload.isOpen;
+        },
     },
     extraReducers: (builder) => {
         builder
@@ -215,5 +226,5 @@ export const sliceTask = createSlice({
     }
 })
 
-export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog } = sliceTask.actions;
+export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog, openRepayModal, interactRepayModal, closeRepayModal } = sliceTask.actions;
 export const taskReducer = sliceTask.reducer;
