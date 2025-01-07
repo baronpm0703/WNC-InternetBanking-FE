@@ -3,7 +3,6 @@ import { transactionColumns } from "../Resusable/columns";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { interactDetailDialog } from "@/libs/slices/sliceTask";
-import { AccountInfo, selectCustomer } from "@/libs/slices/sliceAccount";
 import converTypeHelper from "@/helpers/convertTypeHelper";
 import { fetchAccountTransaction, TransactionRecord } from "@/libs/slices/sliceTransaction";
 import timeStampHelper from "@/helper/convertTimeStamp";
@@ -20,7 +19,6 @@ import { format } from "date-fns";
 const CustomerTransactionUI = () => {
   const dispatch = useAppDispatch();
   const { isOpenDetailDialog } = useAppSelector(state => state.task);
-  const { customerAccount, selectedCustomer } = useAppSelector(state => state.account);
   const { transactions, loading, selectedTransaction } = useAppSelector(state => state.transaction);
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -31,22 +29,6 @@ const CustomerTransactionUI = () => {
   })
 
   const { accountInfo } = useAppSelector(state => state.account);
-
-  // Filter accounts based on input value (search by name or account number)
-  const filteredAccounts = Array.isArray(customerAccount)
-    ? customerAccount.filter((account: AccountInfo) =>
-      account.name.toLowerCase().includes(inputValue.toLowerCase()) ||
-      account.account_number.toLowerCase().includes(inputValue.toLowerCase())
-    )
-    : [];
-
-  // Handle CommandItem selection
-  const handleCommandItemClick = (account: AccountInfo) => {
-    const value = `${account.name} - ${account.account_number}`;
-    console.log("Selected account:", value); // Debugging
-    dispatch(selectCustomer(account)); // Update selectedCustomer in Redux store
-    setOpen(false); // Close CommandList
-  };
 
   // Handle clicking outside the input field to close the CommandList
   useEffect(() => {
@@ -68,6 +50,12 @@ const CustomerTransactionUI = () => {
       dispatch(fetchAccountTransaction(accountInfo.account_number));
     }
   }, [accountInfo]);
+
+  useEffect(() => {
+    if (transactions.length > 0) {
+      console.log("Transaction hohohoho debts:", transactions);
+    }
+  }, [transactions]);
 
   const filterByDate = useMemo(() => {
     return transactions.filter((item: TransactionRecord) => {

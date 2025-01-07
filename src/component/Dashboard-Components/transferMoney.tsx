@@ -31,13 +31,6 @@ import { DataTable } from "../Resusable/dataTable";
 import { Dialog } from "@/components/ui/dialog";
 import { interactDetailDialog } from "@/libs/slices/sliceTask";
 import { DateRange } from "react-day-picker";
-import { PopoverContent } from "@/components/ui/popover";
-import { PopoverTrigger } from "@/components/ui/popover";
-import { Popover } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
-import { CalendarIcon } from "lucide-react";
-import { Calendar } from "@/components/ui/calendar";
-import { format } from "date-fns";
 
 const TransferSchema = z.object({
   transferFrom: z.string().nonempty({ message: "Please select a source account." }),
@@ -321,7 +314,6 @@ const TransferUI = () => {
       .unwrap()
       .then((response: any) => {
         console.log("Transaction created successfully:", response);
-
         if (isSaveBeneficiary) {
           const beneficiaryData = {
             account_number: targetAccountNumber,
@@ -355,17 +347,10 @@ const TransferUI = () => {
         clientId: selectedBankId,
       })
     ).unwrap()
-      .then((response: any) => {
-        if (response.isOTPValid && response.success) {
-          console.log("External Transaction created successfully:", response);
-          toast.success("External Transaction created successfully!");
-          setActiveStep("transferSuccess");
-          dispatch(fetchAccountInfo());
-        } else {
-          const errorMessage = response.message || "Transaction failed!";
-          toast.error(errorMessage);
-          console.error("Transaction validation failed:", errorMessage);
-        }
+      .then(() => {
+        setActiveStep("transferSuccess");
+        toast.success("External Transaction created successfully!");
+        dispatch(fetchAccountInfo());
       })
       .catch((error) => {
         console.error("Error creating External transaction:", error);
@@ -1636,44 +1621,6 @@ const TransferUI = () => {
         <div className="mt-8 p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-xl font-bold">Transaction</h3>
-            <div className={` gap-2 text-black absolute left-[calc(210%)] top-0 mt-1`}>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    id="date"
-                    variant={"outline"}
-                    className={cn(
-                      "w-[300px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon />
-                    {date?.from ? (
-                      date.to ? (
-                        <>
-                          {format(date.from, "LLL dd, y")} -{" "}
-                          {format(date.to, "LLL dd, y")}
-                        </>
-                      ) : (
-                        format(date.from, "LLL dd, y")
-                      )
-                    ) : (
-                      <span>Pick a date</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={date?.from}
-                    selected={date}
-                    onSelect={setDate}
-                    numberOfMonths={2}
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
             <button className="flex bg-black items-center text-sm font-medium hover:underline" onClick={() => navigate('/dashboard/transaction-history')}>
               See All
               <span className="ml-2 flex justify-center items-center w-6 h-6 bg-black border border-white text-white rounded-full">

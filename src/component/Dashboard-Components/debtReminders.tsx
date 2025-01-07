@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { DataTable } from "../Resusable/dataTable";
-import { debtColumns, inDebts } from "../Resusable/columns";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { debteeColumns } from "../Resusable/columns";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { interactDialog } from "@/libs/slices/sliceTask";
+import { closeRepayModal } from "@/libs/slices/sliceTask";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -22,6 +21,9 @@ import { createDebtRemind, fetchTransactionTarget } from "@/libs/slices/sliceAcc
 import { toast } from "react-toastify";
 import currencyHelper from "@/helper/currencyHelper";
 import timeStampHelper from "@/helper/convertTimeStamp";
+import converTypeHelper from "@/helpers/convertTypeHelper";
+import { fetchUnpaidInDebt, fetchAllDebt, fetchCreatedDebt } from "@/libs/slices/sliceDebt";
+import ReactCodeInput from "react-code-input";
 
 const TransferSchema = z.object({
   account_number: z.string().nonempty({ message: "Please select a beneficiary account." }),
@@ -32,15 +34,94 @@ const TransferSchema = z.object({
   detail: z.string().nonempty({ message: "Details is required." }),
 });
 
-
+const OTPSchema = z.object({
+  otp: z
+    .string()
+    .length(6, { message: "OTP must be 6 digits" })
+    .regex(/^\d{6}$/, { message: "Invalid OTP format" }),
+});
 const DebtReminderUI = () => {
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const dispatch = useAppDispatch();
-  const { isOpenDialog } = useAppSelector(state => state.task);
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
   const [searchQuery, setSearchQuery] = useState("");
   const { error, accountInfo } = useAppSelector(state => state.account);
   const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
+  const { isRepayModalOpen } = useAppSelector((state) => state.task);
+  const [currentStep, setCurrentStep] = useState<"amount" | "otp">("amount"); // Trạng thái điều khiển bước form
+  const { selectedDebt } = useAppSelector(state => state.debt);
+  const debts = useAppSelector((state) => state.debt.inDebt);
+  const createdDebts = useAppSelector((state) => state.debt.createdDebt);
+  const unpaidDebts = useAppSelector((state) => state.debt.unpaidDebt);
+
+  useEffect(() => {
+    if (accountInfo.account_number) {
+      dispatch(fetchAllDebt());
+    }
+  }, [accountInfo.account_number, dispatch]);
+
+  useEffect(() => {
+    if (accountInfo.account_number) {
+      dispatch(fetchCreatedDebt(accountInfo.account_number));
+    }
+  }, [accountInfo.account_number, dispatch]);
+
+  useEffect(() => {
+    if (accountInfo.account_number) {
+      dispatch(fetchUnpaidInDebt(accountInfo.account_number));
+    }
+  }, [accountInfo.account_number, dispatch]);
+
+  useEffect(() => {
+    if (debts.length > 0) {
+      console.log("Fetched debts:", debts);
+    }
+  }, [debts]);
+
+  useEffect(() => {
+    if (debts.length > 0) {
+      console.log("Unpaid debts:", debts);
+    }
+  }, [unpaidDebts]);
+
+  // Form 1: Amount
+  const repayForm = useForm({
+    defaultValues: {
+      amount: selectedDebt ? String(selectedDebt.amount) : "",
+    },
+  });
+
+  // Form 2: OTP
+  const otpForm = useForm({
+    resolver: zodResolver(OTPSchema),
+    defaultValues: {
+      otp: "",
+    },
+  });
+
+  const handleCloseModal = () => {
+    dispatch(closeRepayModal());
+    repayForm.reset();
+    otpForm.reset();
+    setCurrentStep("amount");
+  };
+
+  const onSubmitRepay = (data: { amount: string }) => {
+    console.log("Amount data:", { ...data, debtId: selectedDebt?.id });
+    setCurrentStep("otp");
+    console.log("HEHE", currentStep)
+  };
+
+  const onSubmitOTP = (data: { otp: string }) => {
+    console.log("OTP data:", { ...data, debtId: selectedDebt?.id });
+    handleCloseModal();
+  };
+
+  useEffect(() => {
+    if (selectedDebt) {
+      repayForm.setValue("amount", String(selectedDebt.amount)); // Cập nhật giá trị form
+    }
+  }, [selectedDebt, repayForm]);
 
   const debtRemindForm = useForm({
     resolver: zodResolver(TransferSchema),
@@ -311,22 +392,261 @@ const DebtReminderUI = () => {
 
         </div>
         {/* Debt table */}
-        <div className="container mx-auto py-10">
-          <Dialog open={isOpenDialog} onOpenChange={(data) => {
-            console.log(data);
-            dispatch(interactDialog(data));
-          }}>
-            <DataTable columns={debtColumns} data={inDebts} />
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Cancel Debt Remind</DialogTitle>
-                <DialogDescription>Nothing</DialogDescription>
-              </DialogHeader>
-              <DialogFooter>
-                <Button type="submit">Save changes</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+        <div className="mt-8 p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">Debt Send By Other</h3>
+          </div>
+          <div className="container mx-auto py-4">
+            <DataTable columns={debteeColumns} data={converTypeHelper.convertToDebtColumns(unpaidDebts)} />
+            <Dialog open={isRepayModalOpen} onOpenChange={handleCloseModal}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{currentStep === "amount" ? "Repay Debt" : "Enter OTP"}</DialogTitle>
+                </DialogHeader>
+
+                {selectedDebt && currentStep === "amount" && (
+                  <Form {...repayForm}>
+                    <form
+                      onSubmit={repayForm.handleSubmit(onSubmitRepay)}
+                      className="space-y-4"
+                    >
+                      {/* Debtor Information */}
+                      <div className="p-6 bg-gradient-to-tr from-[#b9ff66] to-[#9de8ee] rounded-lg shadow-lg text-black">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_name}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee Number</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_number}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg md:col-span-2">
+                            <p className="text-sm uppercase tracking-wider font-bold">Amount</p>
+                            <p className="text-xl font-bold text-green-600">
+                              {currencyHelper.convertToCurrency(selectedDebt.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Modal Footer */}
+                      <DialogFooter className="flex justify-end space-x-4 mt-6">
+                        <Button
+                          type="button"
+                          onClick={handleCloseModal}
+                          className="py-2 px-6 rounded-md border border-gray-600 text-gray-200 hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 transition"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="py-2 px-6 rounded-md bg-blue-400 text-white font-semibold hover:from-green-500 hover:to-blue-600 focus:ring-2 focus:ring-blue-500 transition"
+                        >
+                          Next
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                )}
+                {selectedDebt && currentStep === "otp" && (
+                  <Form {...otpForm}>
+                    <form onSubmit={otpForm.handleSubmit(onSubmitOTP)} className="space-y-4">
+                      <div className="p-6 bg-gradient-to-tr from-[#b9ff66] to-[#9de8ee] rounded-lg shadow-lg text-black">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_name}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee Number</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtor_name}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg md:col-span-2">
+                            <p className="text-sm uppercase tracking-wider font-bold">Amount</p>
+                            <p className="text-xl font-bold text-green-600">
+                              {currencyHelper.convertToCurrency(selectedDebt.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t border-gray-600 my-4"></div>
+
+                      <div className="mb-4 flex flex-col items-center bg-black rounded-xl p-4">
+                        <p className="text-white text-sm mb-4">Enter OTP sending to your email!</p>
+                        <FormField
+                          control={otpForm.control}
+                          name="otp"
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormControl>
+                                <ReactCodeInput
+                                  type="number"
+                                  fields={6}
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                  inputStyle={{
+                                    width: "2.5rem",
+                                    height: "2.5rem",
+                                    margin: "0.5rem",
+                                    fontSize: "1.5rem",
+                                    textAlign: "center",
+                                    borderRadius: "0.5rem",
+                                    color: "black",
+                                    border: fieldState.error
+                                      ? "2px solid red"
+                                      : "1px solid green",
+                                    backgroundColor: fieldState.error ? "#fee2e2" : "#d1fae5",
+                                  }}
+                                />
+                              </FormControl>
+                              {fieldState.error && (
+                                <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                              )}
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      {/* Modal Footer */}
+                      <DialogFooter>
+                        <Button type="button" onClick={handleCloseModal} variant="ghost">
+                          Cancel
+                        </Button>
+                        <Button type="submit">Confirm</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">Debt Created By Me</h3>
+          </div>
+          <div className="container mx-auto py-4">
+            <DataTable columns={debteeColumns} data={converTypeHelper.convertToDebtColumns(createdDebts)} />
+            <Dialog open={isRepayModalOpen} onOpenChange={handleCloseModal}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{currentStep === "amount" ? "Repay Debt" : "Enter OTP"}</DialogTitle>
+                </DialogHeader>
+
+                {selectedDebt && currentStep === "amount" && (
+                  <Form {...repayForm}>
+                    <form
+                      onSubmit={repayForm.handleSubmit(onSubmitRepay)}
+                      className="space-y-4"
+                    >
+                      {/* Debtor Information */}
+                      <div className="p-6 bg-gradient-to-tr from-[#b9ff66] to-[#9de8ee] rounded-lg shadow-lg text-black">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_name}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee Number</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_number}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg md:col-span-2">
+                            <p className="text-sm uppercase tracking-wider font-bold">Amount</p>
+                            <p className="text-xl font-bold text-green-600">
+                              {currencyHelper.convertToCurrency(selectedDebt.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      {/* Modal Footer */}
+                      <DialogFooter className="flex justify-end space-x-4 mt-6">
+                        <Button
+                          type="button"
+                          onClick={handleCloseModal}
+                          className="py-2 px-6 rounded-md border border-gray-600 text-gray-200 hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 transition"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          className="py-2 px-6 rounded-md bg-blue-400 text-white font-semibold hover:from-green-500 hover:to-blue-600 focus:ring-2 focus:ring-blue-500 transition"
+                        >
+                          Next
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                )}
+                {selectedDebt && currentStep === "otp" && (
+                  <Form {...otpForm}>
+                    <form onSubmit={otpForm.handleSubmit(onSubmitOTP)} className="space-y-4">
+                      {/* OTP Input */}
+                      <div className="p-6 bg-gradient-to-tr from-[#b9ff66] to-[#9de8ee] rounded-lg shadow-lg text-black">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_name}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg">
+                            <p className="text-sm uppercase tracking-wider font-bold">Debtee Number</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtor_name}</p>
+                          </div>
+                          <div className="p-4 bg-white/50 rounded-lg md:col-span-2">
+                            <p className="text-sm uppercase tracking-wider font-bold">Amount</p>
+                            <p className="text-xl font-bold text-green-600">
+                              {currencyHelper.convertToCurrency(selectedDebt.amount)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="border-t border-gray-600 my-4"></div>
+
+                      <div className="mb-4 flex flex-col items-center bg-black rounded-xl p-4">
+                        <p className="text-white text-sm mb-4">Enter OTP sending to your email!</p>
+                        <FormField
+                          control={otpForm.control}
+                          name="otp"
+                          render={({ field, fieldState }) => (
+                            <FormItem>
+                              <FormControl>
+                                <ReactCodeInput
+                                  type="number"
+                                  fields={6}
+                                  value={field.value || ""}
+                                  onChange={field.onChange}
+                                  inputStyle={{
+                                    width: "2.5rem",
+                                    height: "2.5rem",
+                                    margin: "0.5rem",
+                                    fontSize: "1.5rem",
+                                    textAlign: "center",
+                                    borderRadius: "0.5rem",
+                                    color: "black",
+                                    border: fieldState.error
+                                      ? "2px solid red"
+                                      : "1px solid green",
+                                    backgroundColor: fieldState.error ? "#fee2e2" : "#d1fae5",
+                                  }}
+                                />
+                              </FormControl>
+                              {fieldState.error && (
+                                <p className="text-red-500 text-sm mt-2">{fieldState.error.message}</p>
+                              )}
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      {/* Modal Footer */}
+                      <DialogFooter>
+                        <Button type="button" onClick={handleCloseModal} variant="ghost">
+                          Cancel
+                        </Button>
+                        <Button type="submit">Confirm</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
       </div>
 
@@ -354,7 +674,7 @@ const DebtReminderUI = () => {
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 };
 

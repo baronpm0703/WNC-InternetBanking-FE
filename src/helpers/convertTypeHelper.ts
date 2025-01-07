@@ -1,4 +1,4 @@
-import { customerAccount, employeeAccount, Identity, Transaction, AccountRole } from "@/component/Resusable/columns";
+import { customerAccount, employeeAccount, Identity, Transaction, AccountRole, Debt } from "@/component/Resusable/columns";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import { AccountInfo } from "@/libs/slices/sliceAccount";
 import { BankInfo, TransactionRecord } from "@/libs/slices/sliceTransaction";
@@ -112,7 +112,34 @@ const converTypeHelper = {
       }
     })
     return object
+  },
+
+  convertToDebtColumns: (data: any[] | undefined | null) => {
+    if (!data) return [];
+    let object: Debt[] = data.map((item, index) => {
+      const random = Math.floor(Math.random() * 100);
+      return {
+        id: item.id || index.toString(),
+        debtee_number: item.debtee_number,
+        debtor_number: item.debtor_number,
+        debtee_name: item.debtee_name,
+        debtor_name: item.debtor_name,
+        bank_id: item.bank_id || "Unknown Bank",
+        debtID: item.debtID || `DEBT-${index + 1}`,
+        amount: item.amount || 0,
+        debtRemind_date: timeStampHelper.formatTimestamp(item.created_at || item.debtRemind_date || ""),
+        detail: item.detail || "No details provided",
+        status: item.status || "Pending",
+        identity: {
+          name: item.debtee_info?.name || "Unknown Debtor",
+          phone: item.debtor_number || "N/A",
+          avt: `https://randomuser.me/api/portraits/med/men/${random}.jpg`,
+        },
+      };
+    });
+    return object;
   }
+  
 }
 
 export default converTypeHelper;
