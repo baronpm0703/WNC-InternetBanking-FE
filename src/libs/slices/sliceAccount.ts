@@ -9,8 +9,8 @@ export type RecipientInfo = {
 }
 export type DepositInfo = {
   amount: number
-  account_number: string
-  email: string
+  accountNumber?: string
+  email?: string
   remarks: string
 }
 

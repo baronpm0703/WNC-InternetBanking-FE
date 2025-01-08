@@ -19,14 +19,6 @@ import { CalendarIcon } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import timeStampHelper from "@/helper/convertTimeStamp";
 
-interface ICommandProps {
-  value: string; label: string
-}
-const commands: ICommandProps[] = [
-  { value: "add", label: "Add a new" },
-  { value: "delete", label: "Delete a customer" },
-]
-
 const CustomerAccountUI = () => {
   const dispatch = useAppDispatch();
   const { isOpenDialog } = useAppSelector(state => state.task);

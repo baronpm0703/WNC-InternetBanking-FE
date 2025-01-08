@@ -12,6 +12,7 @@ interface DebtState {
     isRepayModalOpen: boolean;
     loading: boolean;
     error: string | null;
+    isRepaySuccess?: boolean;
 }
 
 const initialState: DebtState = {
@@ -22,7 +23,18 @@ const initialState: DebtState = {
     isRepayModalOpen: false,
     loading: false,
     error: null,
+    isRepaySuccess: false
 };
+
+export interface RepayDebtInfo {
+    debt_id: string,
+    own_account_number:string,
+    otp:string,
+    target: {
+        account_number:string,
+        name:string
+    }
+}
 
 export const createDebtRemind = createAsyncThunk(
     "debt/create",
@@ -55,8 +67,11 @@ export const fetchAllDebt = createAsyncThunk<Debt[], void, { rejectValue: string
                     let debtorName = "Unknown Debtor";
                     if (item.debtor_number) {
                         try {
-                            const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
-                            debtorName = result?.name || "Unknown Debtor";
+                            // const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
+                            const result = await apiClient.get('accounts/transaction-target', {
+                                params: { account_number: item.debtor_number },
+                            });
+                            debtorName = result.data.target_data?.name || "Unknown Debtor";
                         } catch (error) {
                             console.error(`Error fetching debtor name for ${item.debtor_number}:`, error);
                         }
@@ -112,9 +127,12 @@ export const fetchUnpaidInDebt = createAsyncThunk<Debt[], string, { rejectValue:
                     let debtorName = "Unknown Debtor";
                     let debtorAccountNumber = "Unknown Debtor";
                     try {
-                        const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
-                        debtorName = result?.name || "Unknown Debtor";
-                        debtorAccountNumber = result?.account_number || "N/A";
+                        // const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
+                        const result = await apiClient.get('accounts/transaction-target', {
+                            params: { account_number: item.debtor_number },
+                        });
+                        debtorName = result.data.target_data?.name || "Unknown Debtor";
+                        debtorAccountNumber = result.data.target_data?.account_number || "N/A";
                         console.log("Fetched debtorAccountNumber:", debtorAccountNumber);
                     } catch (error) {
                         console.error("Error fetching debtor name:", error);
@@ -163,8 +181,11 @@ export const fetchCreatedDebt = createAsyncThunk<Debt[], string, { rejectValue: 
 
                     let debtorName = "Unknown Debtor";
                     try {
-                        const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
-                        debtorName = result?.name || "Unknown Debtor";
+                        // const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
+                        const result = await apiClient.get('accounts/transaction-target', {
+                            params: { account_number: item.debtor_number },
+                        });
+                        debtorName = result.data.target_data?.name || "Unknown Debtor";
                     } catch (error) {
                         console.error("Error fetching debtor name:", error);
                     }
@@ -211,6 +232,18 @@ export const cancelDebt = createAsyncThunk<
         return rejectWithValue(error.response?.data?.message || "Failed to cancel debt");
     }
 });
+export const repayDebt = createAsyncThunk(
+    "debt/repayDebt",
+    async (debtInfo: RepayDebtInfo, { rejectWithValue }) => {
+        try {
+            const response = await apiClient.post(`debt/pay`, debtInfo);
+            return response.data;
+        } catch (error) {
+            console.log("Error repaying debt:", error);
+            return rejectWithValue((error as Error).message);
+        }
+    }
+)
 
 const debtSlice = createSlice({
     name: "debt",
@@ -273,6 +306,18 @@ const debtSlice = createSlice({
             .addCase(cancelDebt.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload || "Failed to cancel debt";
+            })
+            .addCase(repayDebt.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(repayDebt.fulfilled, (state, action) => {
+                state.loading = false;
+                state.isRepaySuccess = true;
+            })
+            .addCase(repayDebt.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload as string || "Failed to repay debt";
             });
     },
 });

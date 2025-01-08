@@ -141,7 +141,7 @@ export function DataTable<TData, TValue>({
           {calculateKeyWord && (
             <TableFooter>
               <TableRow>
-                <TableCell colSpan={8} className="text-lg text-left">Total</TableCell>
+                <TableCell colSpan={7} className="text-lg text-left">Total</TableCell>
                 <TableCell className="text-center">{currencyHelper.convertToCurrency(calculateTotal(calculateKeyWord || "amount"))}</TableCell>
               </TableRow>
             </TableFooter>

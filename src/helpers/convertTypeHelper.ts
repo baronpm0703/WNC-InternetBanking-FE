@@ -119,7 +119,7 @@ const converTypeHelper = {
     let object: Debt[] = data.map((item, index) => {
       const random = Math.floor(Math.random() * 100);
       return {
-        id: item.id || index.toString(),
+        id: item.id,
         debtee_number: item.debtee_number,
         debtor_number: item.debtor_number,
         debtee_name: item.debtee_name,
