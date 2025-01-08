@@ -29,7 +29,7 @@ const AuthScreen: React.FC = () => {
             <div className="flex flex-row w-full justify-between bg-transparent text-white absolute py-10 ps-16 pe-32">
                 <div className="flex flex-row items-center">
                     <img src={"/IBP/logo.svg"} alt="logo" className="w-10 h-10 me-1" />
-                    <p className="font-bold text-3xl font-lexend">J97Bank</p>
+                    <p className="font-bold text-3xl font-lexend">Nhom10Bank</p>
                 </div>
                 {/* Button */}
                 <div className="flex flex-row-reverse">

@@ -512,7 +512,7 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
     }
   },
   {
-    accessorKey: "bankName"
+    accessorKey: "bankName",
   },
   {
     accessorKey: "payment_method",

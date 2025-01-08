@@ -45,12 +45,21 @@ const DepositUI = () => {
   function onSubmit(data: z.infer<typeof FormSchema>) {
     toast.success("Submit completed");
     console.log("Submit", data);
-    const convertData: DepositInfo = {
-      account_number: data.account_number,
-      amount: data.amount,
-      remarks: data.note,
-      email: data.email
+    let convertData: DepositInfo 
+    if (!data.account_number) {
+      convertData = {
+        amount: data.amount,
+        remarks: data.note,
+        email: data.email
+      }
+    } else {
+      convertData = {
+        accountNumber: data.account_number,
+        amount: data.amount,
+        remarks: data.note,
+      }
     }
+    
     dispatch(depositCustomer(convertData));
   }
 

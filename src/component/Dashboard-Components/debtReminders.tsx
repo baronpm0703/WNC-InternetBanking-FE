@@ -22,8 +22,10 @@ import { toast } from "react-toastify";
 import currencyHelper from "@/helper/currencyHelper";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import converTypeHelper from "@/helpers/convertTypeHelper";
-import { fetchUnpaidInDebt, fetchAllDebt, fetchCreatedDebt } from "@/libs/slices/sliceDebt";
+import { fetchUnpaidInDebt, fetchAllDebt, fetchCreatedDebt, repayDebt, RepayDebtInfo } from "@/libs/slices/sliceDebt";
 import ReactCodeInput from "react-code-input";
+import { useParams, useSearchParams } from "react-router-dom";
+import { sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
 
 const TransferSchema = z.object({
   account_number: z.string().nonempty({ message: "Please select a beneficiary account." }),
@@ -41,6 +43,11 @@ const OTPSchema = z.object({
     .regex(/^\d{6}$/, { message: "Invalid OTP format" }),
 });
 const DebtReminderUI = () => {
+  const [searchParams] = useSearchParams();
+
+  // Extract the debt_id query parameter
+  const debtId = searchParams.get("debt_id");
+  console.log("Debt_id: ", debtId);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });
@@ -49,7 +56,7 @@ const DebtReminderUI = () => {
   const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
   const { isRepayModalOpen } = useAppSelector((state) => state.task);
   const [currentStep, setCurrentStep] = useState<"amount" | "otp">("amount"); // Trạng thái điều khiển bước form
-  const { selectedDebt } = useAppSelector(state => state.debt);
+  const { selectedDebt, isRepaySuccess } = useAppSelector(state => state.debt);
   const debts = useAppSelector((state) => state.debt.inDebt);
   const createdDebts = useAppSelector((state) => state.debt.createdDebt);
   const unpaidDebts = useAppSelector((state) => state.debt.unpaidDebt);
@@ -109,11 +116,19 @@ const DebtReminderUI = () => {
   const onSubmitRepay = (data: { amount: string }) => {
     console.log("Amount data:", { ...data, debtId: selectedDebt?.id });
     setCurrentStep("otp");
+    dispatch(sendOtpTransactionSameBank());
     console.log("HEHE", currentStep)
   };
 
   const onSubmitOTP = (data: { otp: string }) => {
-    console.log("OTP data:", { ...data, debtId: selectedDebt?.id });
+    console.log("OTP data:", { ...data, debtId: selectedDebt?.id, own_account_number: accountInfo.account_number, target: { account_number: selectedDebt?.debtee_number, name: selectedDebt?.debtee_number } });
+    let payload: RepayDebtInfo = {
+      debt_id: selectedDebt?.id || "", 
+      own_account_number: accountInfo.account_number, 
+      otp: data.otp,
+      target: { account_number: selectedDebt?.debtee_number || "", name: selectedDebt?.debtee_number || ""} 
+    }
+    dispatch(repayDebt(payload));
     handleCloseModal();
   };
 
@@ -122,6 +137,15 @@ const DebtReminderUI = () => {
       repayForm.setValue("amount", String(selectedDebt.amount)); // Cập nhật giá trị form
     }
   }, [selectedDebt, repayForm]);
+
+  useEffect(() => {
+    if (isRepaySuccess) {
+      repayForm.reset();
+      toast.success("Debt repaid successfully!");
+    } else if (error) {
+      toast.error(error);
+    }
+  }, [isRepaySuccess])
 
   const debtRemindForm = useForm({
     resolver: zodResolver(TransferSchema),
@@ -459,7 +483,7 @@ const DebtReminderUI = () => {
                           </div>
                           <div className="p-4 bg-white/50 rounded-lg">
                             <p className="text-sm uppercase tracking-wider font-bold">Debtee Number</p>
-                            <p className="text-lg font-medium">{selectedDebt.debtor_name}</p>
+                            <p className="text-lg font-medium">{selectedDebt.debtee_number}</p>
                           </div>
                           <div className="p-4 bg-white/50 rounded-lg md:col-span-2">
                             <p className="text-sm uppercase tracking-wider font-bold">Amount</p>

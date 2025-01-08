@@ -103,7 +103,7 @@ const EmployeeTransactionUI = () => {
                   id="date"
                   variant={"outline"}
                   className={cn(
-                    "w-[300px] justify-start text-left font-normal",
+                    "w-[300px] bg-gradient-to-br from-green-400 to-blue-500 text-white flex items-center gap-2 px-6 py-3 rounded-lg shadow-lg border-none justify-start text-left font-semibold transition-all duration-300 transform hover:scale-105 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-300",
                     !date && "text-muted-foreground"
                   )}
                 >
