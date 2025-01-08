@@ -21,6 +21,7 @@ interface TaskState {
     isOpenDeleteEmployeeDialog: boolean;
     loading: boolean;
     isRepayModalOpen: boolean;
+    fcmToken?: string | null;
 }
 const initialState: TaskState = {
     allTask: [],
@@ -106,6 +107,9 @@ export const sliceTask = createSlice({
     name: "task",
     initialState,
     reducers: {
+        addToken: (state, action) => {
+            state.fcmToken = action.payload;
+        },
         showAll: (state) => {
             state.isShowAddTask = !state.isShowAddTask;
             let { isShowAddTask, allTask } = state;
@@ -226,5 +230,5 @@ export const sliceTask = createSlice({
     }
 })
 
-export const { showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog, openRepayModal, interactRepayModal, closeRepayModal } = sliceTask.actions;
+export const { addToken, showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog, openRepayModal, interactRepayModal, closeRepayModal } = sliceTask.actions;
 export const taskReducer = sliceTask.reducer;

@@ -15,7 +15,7 @@ export const DashboardNavBar: React.FC = () => {
       {/* Logo */}
       <div className="flex items-center mb-8">
         <img src="/IBP/logo.svg" alt="YourBank Logo" className="w-10 h-10 mr-2" />
-        <span className="font-bold text-3xl">J97Bank</span>
+        <span className="font-bold text-3xl">Nhom10Bank</span>
       </div>
 
       {/* Navigation Links */}
@@ -147,54 +147,6 @@ export const DashboardNavBar: React.FC = () => {
                   )}
                 </NavLink>
               </li>
-              <li>
-                <NavLink
-                  to="settings"
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <img
-                        src={
-                          isActive
-                            ? "/svgForWNC/Setting_dark.svg" // Active state image
-                            : "/svgForWNC/Setting_light.svg"  // Inactive state image
-                        }
-                        alt="logo"
-                        className="w-7 h-7 me-3"
-                      />
-                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  to="help-center"
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <img
-                        src={
-                          isActive
-                            ? "/svgForWNC/Help_dark.svg" // Active state image
-                            : "/svgForWNC/Help_light.svg"  // Inactive state image
-                        }
-                        alt="logo"
-                        className="w-7 h-8 me-3 object-contain"
-                      />
-                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
             </ul>
           </>
         ) : accountInfo.role === "Admin" ? (
@@ -249,54 +201,7 @@ export const DashboardNavBar: React.FC = () => {
                   )}
                 </NavLink>
               </li>
-              <li>
-                <NavLink
-                  to="settings"
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <img
-                        src={
-                          isActive
-                            ? "/svgForWNC/Setting_dark.svg" // Active state image
-                            : "/svgForWNC/Setting_light.svg"  // Inactive state image
-                        }
-                        alt="logo"
-                        className="w-7 h-7 me-3"
-                      />
-                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  to="help-center"
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <img
-                        src={
-                          isActive
-                            ? "/svgForWNC/Help_dark.svg" // Active state image
-                            : "/svgForWNC/Help_light.svg"  // Inactive state image
-                        }
-                        alt="logo"
-                        className="w-7 h-8 me-3 object-contain"
-                      />
-                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
+              
             </ul>
           </>
         ) : (
@@ -375,54 +280,6 @@ export const DashboardNavBar: React.FC = () => {
                   )}
                 </NavLink>
               </li>
-              <li>
-                <NavLink
-                  to="settings"
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <img
-                        src={
-                          isActive
-                            ? "/svgForWNC/Setting_dark.svg" // Active state image
-                            : "/svgForWNC/Setting_light.svg"  // Inactive state image
-                        }
-                        alt="logo"
-                        className="w-7 h-7 me-3"
-                      />
-                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Settings</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
-              <li>
-                <NavLink
-                  to="help-center"
-                  className={({ isActive }) =>
-                    `flex items-center px-4 py-3 rounded-lg ${isActive ? "bg-white text-black" : "hover:bg-gray-800"
-                    }`
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      <img
-                        src={
-                          isActive
-                            ? "/svgForWNC/Help_dark.svg" // Active state image
-                            : "/svgForWNC/Help_light.svg"  // Inactive state image
-                        }
-                        alt="logo"
-                        className="w-7 h-8 me-3 object-contain"
-                      />
-                      <span className={isActive ? "text-black font-bold" : "text-white font-bold"}>Help Center</span>
-                    </>
-                  )}
-                </NavLink>
-              </li>
             </ul>
           </>
         )}
@@ -440,13 +297,12 @@ export const DashboardNavBar: React.FC = () => {
             {({ isActive }) => (
               <>
                 <img
-                  src="/UserAvatar.png"
+                  src="https://randomuser.me/api/portraits/med/men/20.jpg"
                   alt="User Avatar"
                   className="w-10 h-10 rounded-full mr-2"
                 />
                 <div>
-                  <p className={isActive ? "font-bold text-black" : "font-bold text-white"}>Ali Riaz</p>
-                  <p className={isActive ? "text-sm text-black" : "text-sm text-gray-500"}>@username</p>
+                  <p className={isActive ? "font-bold text-black" : "font-bold text-white"}>User Profile</p>
                 </div>
               </>
             )}
