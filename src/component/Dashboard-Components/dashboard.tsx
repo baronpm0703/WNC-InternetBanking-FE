@@ -1,22 +1,149 @@
+import { Dialog, DialogFooter, DialogHeader, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { DialogContent } from "@/components/ui/dialog";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import currencyHelper from "@/helper/currencyHelper";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { fetchCustomerAccount } from "@/libs/slices/sliceAccount";
-import { memo, useEffect } from "react";
+import { beneficiaryColumns, transactionColumns } from "../Resusable/columns";
+import { memo, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { DataTable } from "../Resusable/dataTable";
+import { interactDetailDialog, interactDialog } from "@/libs/slices/sliceTask";
+import converTypeHelper from "@/helpers/convertTypeHelper";
+import { Button } from "@/components/ui/button";
+import { fetchTransactionTarget } from "@/libs/slices/sliceAccount";
+import { fetchBankById } from "@/libs/slices/sliceExternalBank";
+import { fetchExternalAccount } from "@/libs/slices/sliceExternalBank";
+import { fetchAccountTransaction } from "@/libs/slices/sliceTransaction";
 
 const DashboardUI = memo(() => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { error, accountInfo } = useAppSelector(state => state.account);
+  const { accountInfo } = useAppSelector(state => state.account);
   useEffect(() => {
     console.log("Before Move Account Info: ", accountInfo);
     if (accountInfo.role !== "Customer") {
       navigate(`/${accountInfo.role}`);
     }
   }, [accountInfo.role]);
+  const { isOpenDetailDialog } = useAppSelector(state => state.task);
 
-  const recipients = accountInfo.recipient_list || [];
+  const recipients = accountInfo.recipient_list?.[0]?.recipient_list || [];
+  const { transactions, loading, selectedTransaction } = useAppSelector(state => state.transaction);
+  const { isOpenDialog } = useAppSelector(state => state.task);
+
+  useEffect(() => {
+    if (accountInfo.account_number) {
+      console.log("Fetching Transaction History");
+      dispatch(fetchAccountTransaction(accountInfo.account_number));
+    }
+  }, [accountInfo.account_balance]);
+
+  console.log("transaction", transactions);
+
+  type RecipientWithName = {
+    id: string;
+    identity: {
+      name: string;
+      phone: string;
+      avt: string;
+    };
+    bank: string;
+    account_number: string;
+    reminder_name: string;
+  };
+
+  const [inBeneficiaries, setInBeneficiaries] = useState<RecipientWithName[]>([]);
+
+  const [totalSent, setTotalSent] = useState(0); // Tổng tiền đã chuyển
+  const [totalReceived, setTotalReceived] = useState(0); // Tổng tiền đã nhận
+
+  const [totalsLoaded, setTotalsLoaded] = useState(false); // Trạng thái để kiểm tra đã load chưa
+
+  useEffect(() => {
+    if (!totalsLoaded && transactions.length > 0) {
+      calculateTotals();
+      setTotalsLoaded(true);
+    }
+  }, [transactions, totalsLoaded]);
+
+  const calculateTotals = () => {
+    const totalSent = transactions.reduce((total, transaction) => {
+      if (transaction.sender_info.account_number === accountInfo.account_number) {
+        return total + transaction.amount;
+      }
+      return total;
+    }, 0);
+
+    const totalReceived = transactions.reduce((total, transaction) => {
+      if (transaction.recipient_info.account_number === accountInfo.account_number) {
+        return total + transaction.amount;
+      }
+      return total;
+    }, 0);
+
+    setTotalSent(totalSent);
+    setTotalReceived(totalReceived);
+    console.log("Tổng số tiền đã chuyển:", totalSent);
+    console.log("Tổng số tiền đã nhận:", totalReceived);
+  };
+
+  useEffect(() => {
+    const fetchRecipientsWithNames = async () => {
+      if (!recipients || recipients.length === 0) return;
+
+      const recipientsWithNames = await Promise.all(
+        recipients.map(async (recipient) => {
+          try {
+            let accountData: { name?: string } | null = null;
+            let bankName = "";
+            if (recipient.bank_id !== "6750a0c9a9dc441ad3fbfb9f") {
+              accountData = await dispatch(fetchExternalAccount({
+                account_number: recipient.account_number,
+                bank_id: recipient.bank_id,
+              })).unwrap();
+
+              const bankData = await dispatch(fetchBankById(recipient.bank_id)).unwrap();
+              bankName = bankData.name || "Unknown Bank";
+            } else {
+              accountData = await dispatch(fetchTransactionTarget(recipient.account_number)).unwrap();
+              bankName = "Nhom10Bank";
+            }
+            return {
+              id: recipient.account_number,
+              identity: {
+                name: accountData?.name || "Unknown",
+                phone: "Not Available",
+                avt: "https://lh4.googleusercontent.com/proxy/-BvxvtLr9pzhfvVNx1CNxelUNQxeRwpfgobPfy46t5-c6_4kMIM_UUraqWpbcTNljDQQEUckfIVgZv00cDJMc3ZZdyOgrp5-PK5t8eDHCkNxupTIE4C7VIB4",
+              },
+              bank: bankName,
+              account_number: recipient.account_number,
+              reminder_name: recipient.reminder_name,
+            };
+          } catch (error) {
+            console.error(`Error fetching name for account_number ${recipient.account_number}:`, error);
+            return {
+              id: recipient.account_number,
+              identity: {
+                name: "Unknown",
+                phone: "Not Available",
+                avt: "https://randomuser.me/api/portraits/placeholder.jpg",
+              },
+              bank: recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : "Unknown Bank",
+              account_number: recipient.account_number,
+              reminder_name: recipient.reminder_name,
+            };
+          }
+        })
+      );
+
+      setInBeneficiaries(recipientsWithNames);
+    };
+
+    fetchRecipientsWithNames();
+    console.log("BENE", recipients)
+    console.log("Inbeneficiary", inBeneficiaries)
+
+  }, [dispatch, recipients]);
 
   return (
     <div className="text-white font-sans flex">
@@ -29,7 +156,7 @@ const DashboardUI = memo(() => {
           <div className="p-6 border border-white/20 rounded-3xl mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] shadow-lg flex justify-between items-center w-1/2 hover:border-white transition-all duration-200">
             <div>
               <p className="text-sm font-medium text-green-300">Total Income</p>
-              <h2 className="text-2xl font-bold text-white">$632,000</h2>
+              <h2 className="text-2xl font-bold text-white">{totalReceived}</h2>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -40,7 +167,7 @@ const DashboardUI = memo(() => {
           <div className="p-6 border border-white/20 rounded-3xl mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] shadow-lg flex justify-between items-center w-1/2 hover:border-white transition-all duration-200">
             <div>
               <p className="text-sm font-medium text-red-300">Total Outcome</p>
-              <h2 className="text-2xl font-bold text-white">$632,000</h2>
+              <h2 className="text-2xl font-bold text-white">{totalSent}</h2>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center shadow-md">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -49,9 +176,9 @@ const DashboardUI = memo(() => {
             </div>
           </div>
         </div>
-        <div className="p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
+        <div className="p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold">Transaction</h3>
+            <h3 className="text-xl font-bold">Transaction History</h3>
             <button className="flex bg-black items-center text-sm font-medium hover:underline" onClick={() => navigate('/dashboard/transaction-history')}>
               See All
               <span className="ml-2 flex justify-center items-center w-6 h-6 bg-black border border-white text-white rounded-full">
@@ -72,92 +199,72 @@ const DashboardUI = memo(() => {
               </span>
             </button>
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b text-green-400 border-gray-700">
-                <th className="py-2">Name</th>
-                <th className="py-2">Date</th>
-                <th className="py-2">Amount</th>
-                <th className="py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  John
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$80.09</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+          <div className="container mx-auto py-3">
+            <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(transactions, accountInfo.account_number).slice(-5)} loading={loading} filterable={false} />
+            <Dialog
+              open={isOpenDetailDialog}
+              onOpenChange={(data) => {
+                console.log(data);
+                dispatch(interactDetailDialog(data));
+              }}
+            >
+              {/* <DialogTitle>Transaction Detail</DialogTitle> */}
+              <DialogContent className="w-full max-w-md rounded-lg p-6 bg-white shadow-lg">
+                <div className="flex flex-col items-center">
+                  {/* Success Icon */}
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-8 w-8 text-green-600"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
 
+                  {/* Title and Amount */}
+                  <h2 className="text-xl font-bold text-gray-800 mt-4">{selectedTransaction?.status === "Transfered" ? "Transfer Successfull!" : "Receive Successfull!"}</h2>
+                  <p className="text-green-600 text-3xl font-extrabold mt-2">{currencyHelper.convertToCurrency(selectedTransaction?.amount || 0)}</p>
+                  <p className="text-gray-500 mt-2 text-sm">{timeStampHelper.formatTimestamp(selectedTransaction?.transaction_date || "")}</p>
+
+                  {/* Bank Information */}
+                  <div className="mt-4 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                      <img
+                        src="/path/to/dong-a-logo.png" // Replace with your actual logo URL
+                        alt="Dong A Bank"
+                        className="w-6 h-6"
+                      />
+                      <p className="text-gray-800 font-semibold">{selectedTransaction?.bankInfo}</p>
+                    </div>
+                    <p className="text-sm text-gray-600 mt-1">{
+                      selectedTransaction?.status === "Received" ?
+                        selectedTransaction?.sender_info.account_number != "employee_placeholder" ?
+                          `${selectedTransaction?.sender_info.account_number} - ${selectedTransaction?.sender_info.name}` : `${selectedTransaction?.sender_info.name}`
+                        : `${selectedTransaction?.recipient_info.account_number} - ${selectedTransaction?.recipient_info.name}`
+                    }</p>
+                    <p className="text-sm text-gray-500">{selectedTransaction?.remarks}</p>
+                  </div>
+
+                  {/* New Transaction Button */}
+                  <button
+                    className="mt-6 bg-green-500 text-white text-sm font-semibold py-2 px-6 rounded-lg hover:bg-green-600"
+                    onClick={() => console.log("Start a new transaction")}
+                  >
+                    New Transaction
+                  </button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
         <div className="p-6 border border-white/20 rounded-3xl shadow-md mb-8 bg-black shadow-[0px_4px_0px_0px_rgba(255,255,255)] transition-all duration-200 hover:border-white">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold">Debt Reminders</h3>
-            <button className="flex bg-black items-center text-sm font-medium hover:underline" onClick={() => navigate('/dashboard/debt-reminders')}>
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-bold">Favorite Beneficiary</h3>
+            <button className="flex bg-black items-center text-sm font-medium hover:underline" onClick={() => navigate('/dashboard/manage-beneficiaries')}>
               See All
               <span className="ml-2 flex justify-center items-center w-6 h-6 bg-black border border-white text-white rounded-full">
                 <svg
@@ -177,87 +284,25 @@ const DashboardUI = memo(() => {
               </span>
             </button>
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="text-left border-b text-green-400 border-gray-700">
-                <th className="py-2">Debtor</th>
-                <th className="py-2">Date</th>
-                <th className="py-2">Amount</th>
-                <th className="py-2">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  John
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$80.09</td>
-                <td className="py-2">
-                  <span className="bg-yellow-300 text-black px-4 py-1 rounded-full text-xs">
-                    Pending
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Paid
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  John
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$80.09</td>
-                <td className="py-2">
-                  <span className="bg-yellow-300 text-black px-4 py-1 rounded-full text-xs">
-                    Pending
-                  </span>
-                </td>
-              </tr>
-              <tr className="border-b border-transparent hover:text-green-200">
-                <td className="py-3 flex items-center">
-                  <img
-                    src="https://cdn.britannica.com/65/227665-050-D74A477E/American-actor-Leonardo-DiCaprio-2016.jpg"
-                    alt="Avatar"
-                    className="w-8 h-8 rounded-full mr-2 object-cover"
-                  />
-                  Sweety
-                </td>
-                <td className="py-2 text-sm">Apr 20, 9:30 AM</td>
-                <td className="py-2">$7.03</td>
-                <td className="py-2">
-                  <span className="bg-green-300 text-black px-4 py-1 rounded-full text-xs">
-                    Deposited
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="container mx-auto py-6">
+            <Dialog open={isOpenDialog} onOpenChange={(data) => {
+              console.log(data);
+              dispatch(interactDialog(data));
+            }}>
+              <DataTable columns={beneficiaryColumns} data={inBeneficiaries} />
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Remove This Beneficiary</DialogTitle>
+                  <DialogDescription>Are you sure you want to remove this beneficiary?</DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button type="submit">Yes</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
+
       </div>
 
       {/* Fixed Column */}

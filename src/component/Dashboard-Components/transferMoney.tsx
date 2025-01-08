@@ -484,10 +484,6 @@ const TransferUI = () => {
     { bank_name: string; account_number: string; reminder_name: string, bank_id: string }[]
   >([]);
 
-  const [recipientSameBank, setRecipientSameBank] = useState<
-    { bank_name: string; account_number: string; reminder_name: string }[]
-  >([]);
-
   useEffect(() => {
     const fetchAndFilterRecipients = async () => {
       const filteredRecipients = recipients.filter(
@@ -515,25 +511,6 @@ const TransferUI = () => {
       );
       setRecipientInterBank(updatedRecipients.filter((r) => r !== null));
     };
-
-    const fetchAndFilterRecipientsSameBank = async () => {
-      const sameBankRecipients = recipients.filter(
-        (recipient) => recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f"
-      );
-
-      const updatedSameBankRecipients = sameBankRecipients.map((recipient) => {
-        return {
-          bank_name: "Nhom10Bank",
-          account_number: recipient.account_number,
-          reminder_name: recipient.reminder_name,
-          bank_id: recipient.bank_id,
-        };
-      });
-
-      setRecipientSameBank(updatedSameBankRecipients);
-    };
-
-    fetchAndFilterRecipientsSameBank();
     fetchAndFilterRecipients();
   }, [accountInfo.recipient_list, dispatch]);
 
@@ -722,8 +699,8 @@ const TransferUI = () => {
                                     />
                                   </div>
                                   <DropdownMenuSeparator />
-                                  {recipientSameBank
-                                    .filter((account) =>
+                                  {recipients
+                                    .filter((account) => account.bank_id === "6750a0c9a9dc441ad3fbfb9f" &&
                                       `${account.reminder_name} - ${account.account_number}`
                                         .toLowerCase()
                                         .includes(searchQuery.toLowerCase())

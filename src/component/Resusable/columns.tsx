@@ -6,7 +6,7 @@ import timeStampHelper from "@/helper/convertTimeStamp";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { selectCustomerById, selectEmployeeById } from "@/libs/slices/sliceAccount";
 import { selectDebt } from "@/libs/slices/sliceDebt";
-import { openDeleteEmployeeDialog, openDetailDialog, openDialog, openEmployeeCreateDialog, openRepayModal } from "@/libs/slices/sliceTask";
+import { openDeleteEmployeeDialog, openDetailDialog, openDialog, openEmployeeCreateDialog, openRepayModal, openCancelDebtModal } from "@/libs/slices/sliceTask";
 import { BankInfo, selectTransaction } from "@/libs/slices/sliceTransaction";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { ColumnDef } from "@tanstack/react-table"
@@ -205,12 +205,12 @@ export const inDebts: Debt[] = [
       phone: "0123456789",
       avt: "https://randomuser.me/api/portraits/med/men/75.jpg"
     },
-    debtee_name:"phan thai khang",
-    debtor_name:"nguyen phu minh bao",
+    debtee_name: "phan thai khang",
+    debtor_name: "nguyen phu minh bao",
     amount: 100.3,
     bank_id: "123456789",
-    debtor_number:"123",
-    debtee_number:"234",
+    debtor_number: "123",
+    debtee_number: "234",
     debtRemind_date: "Apr 20, 9:30 AM",
     detail: "Transfer",
     debtID: "xaa12",
@@ -248,13 +248,13 @@ export const debteeColumns: ColumnDef<Debt>[] = [
       const accountNumber = row.original.debtee_number || "Unknown";
       const debteeName = row.original.debtee_name || "Unknown";
       const accountInfo = useAppSelector((state) => state.account.accountInfo);
-  
-      const displayAccount = accountNumber === accountInfo.account_number 
-        ? row.original.debtor_number 
+
+      const displayAccount = accountNumber === accountInfo.account_number
+        ? row.original.debtor_number
         : accountNumber;
-        
-        const displayName = accountNumber === accountInfo.account_number 
-        ? row.original.debtor_name 
+
+      const displayName = accountNumber === accountInfo.account_number
+        ? row.original.debtor_name
         : debteeName;
 
       return (
@@ -309,7 +309,8 @@ export const debteeColumns: ColumnDef<Debt>[] = [
       const dispatch = useAppDispatch();
       const debt = row.original;
       const accountInfo = useAppSelector(state => state.account.accountInfo);
-      const isRepayDisabled = debt.debtee_number === accountInfo.account_number;
+      const isRepayDisabled = debt.debtee_number === accountInfo.account_number || debt.status !== "Pending"; // Kiểm tra thêm status
+      const isCancelDisabled = debt.status !== "Pending"; // Kiểm tra status cho "Cancel"
 
       const handleRepay = () => {
         console.log("Repay debt", debt);
@@ -318,7 +319,8 @@ export const debteeColumns: ColumnDef<Debt>[] = [
       };
 
       const handleCancel = () => {
-        dispatch(openDialog());
+        dispatch(openCancelDebtModal()); // Mở modal Cancel
+        dispatch(selectDebt(debt));
       };
 
       return (
@@ -337,13 +339,15 @@ export const debteeColumns: ColumnDef<Debt>[] = [
                 <DropdownMenuSeparator />
               </>
             )}
-            <DropdownMenuItem onClick={handleCancel} onSelect={(e) => e.preventDefault()}>Cancel</DropdownMenuItem>
-          </DropdownMenuContent>
+            {!isCancelDisabled && (
+              <DropdownMenuItem onClick={handleCancel} onSelect={(e) => e.preventDefault()}>
+                Cancel
+              </DropdownMenuItem>
+            )}          </DropdownMenuContent>
         </DropdownMenu>
       );
     }
   }
-
 ]
 
 export const transactionHistory: Transaction[] = [

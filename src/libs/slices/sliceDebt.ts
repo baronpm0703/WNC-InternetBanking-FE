@@ -108,9 +108,9 @@ export const fetchUnpaidInDebt = createAsyncThunk<Debt[], string, { rejectValue:
             const debts: Debt[] = await Promise.all(
                 data.map(async (item: any) => {
                     const random = Math.floor(Math.random() * 100);
-            
+
                     let debtorName = "Unknown Debtor";
-                    let debtorAccountNumber = "Unknown Debtor"; 
+                    let debtorAccountNumber = "Unknown Debtor";
                     try {
                         const result = await dispatch(fetchTransactionTarget(item.debtor_number)).unwrap();
                         debtorName = result?.name || "Unknown Debtor";
@@ -139,7 +139,7 @@ export const fetchUnpaidInDebt = createAsyncThunk<Debt[], string, { rejectValue:
                     };
                 })
             );
-            
+
 
             return debts;
         } catch (error) {
@@ -198,6 +198,20 @@ export const fetchCreatedDebt = createAsyncThunk<Debt[], string, { rejectValue: 
     }
 );
 
+export const cancelDebt = createAsyncThunk<
+    any,
+    { debt_id: string; detail: string },
+    { rejectValue: string }
+>("debt/cancelDebt", async (payload, { rejectWithValue }) => {
+    try {
+        const response = await apiClient.post("/debt/cancel", payload);
+        return response.data;
+    } catch (error: any) {
+        console.error("Error cancelling debt:", error.response?.data || error.message);
+        return rejectWithValue(error.response?.data?.message || "Failed to cancel debt");
+    }
+});
+
 const debtSlice = createSlice({
     name: "debt",
     initialState,
@@ -247,6 +261,18 @@ const debtSlice = createSlice({
             .addCase(fetchAllDebt.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload || "Failed to fetch debts"; // Xử lý lỗi nếu có
+            })
+            .addCase(cancelDebt.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(cancelDebt.fulfilled, (state, action) => {
+                state.loading = false;
+                state.inDebt = action.payload;
+            })
+            .addCase(cancelDebt.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload || "Failed to cancel debt";
             });
     },
 });

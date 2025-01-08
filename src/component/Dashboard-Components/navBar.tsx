@@ -440,13 +440,13 @@ export const DashboardNavBar: React.FC = () => {
             {({ isActive }) => (
               <>
                 <img
-                  src="/UserAvatar.png"
+                  src="https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg?semt=ais_hybrid"
                   alt="User Avatar"
                   className="w-10 h-10 rounded-full mr-2"
                 />
                 <div>
-                  <p className={isActive ? "font-bold text-black" : "font-bold text-white"}>Ali Riaz</p>
-                  <p className={isActive ? "text-sm text-black" : "text-sm text-gray-500"}>@username</p>
+                  <p className={isActive ? "font-bold text-black" : "font-bold text-white"}>{accountInfo.name}</p>
+                  <p className={isActive ? "text-sm text-black" : "text-sm text-gray-500"}>{accountInfo.account_number}</p>
                 </div>
               </>
             )}
