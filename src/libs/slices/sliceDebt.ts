@@ -219,6 +219,19 @@ export const fetchCreatedDebt = createAsyncThunk<Debt[], string, { rejectValue: 
     }
 );
 
+export const cancelDebt = createAsyncThunk<
+    any,
+    { debt_id: string; detail: string },
+    { rejectValue: string }
+>("debt/cancelDebt", async (payload, { rejectWithValue }) => {
+    try {
+        const response = await apiClient.post("/debt/cancel", payload);
+        return response.data;
+    } catch (error: any) {
+        console.error("Error cancelling debt:", error.response?.data || error.message);
+        return rejectWithValue(error.response?.data?.message || "Failed to cancel debt");
+    }
+});
 export const repayDebt = createAsyncThunk(
     "debt/repayDebt",
     async (debtInfo: RepayDebtInfo, { rejectWithValue }) => {
@@ -282,6 +295,18 @@ const debtSlice = createSlice({
                 state.loading = false;
                 state.error = action.payload || "Failed to fetch debts"; // Xử lý lỗi nếu có
             })
+            .addCase(cancelDebt.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(cancelDebt.fulfilled, (state, action) => {
+                state.loading = false;
+                state.inDebt = action.payload;
+            })
+            .addCase(cancelDebt.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload || "Failed to cancel debt";
+            })
             .addCase(repayDebt.pending, (state) => {
                 state.loading = true;
                 state.error = null;
@@ -293,7 +318,7 @@ const debtSlice = createSlice({
             .addCase(repayDebt.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload as string || "Failed to repay debt";
-            })
+            });
     },
 });
 

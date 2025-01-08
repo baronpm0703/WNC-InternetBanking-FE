@@ -154,7 +154,7 @@ const ProfileUI = () => {
                     <div className="flex items-center mb-6">
                         {/* Avatar */}
                         <img
-                            src="https://via.placeholder.com/80"
+                            src="https://img.freepik.com/free-vector/blue-circle-with-white-user_78370-4707.jpg?semt=ais_hybrid"
                             alt="User Avatar"
                             className="w-20 h-20 rounded-full mr-4"
                         />

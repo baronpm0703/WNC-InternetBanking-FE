@@ -21,6 +21,7 @@ interface TaskState {
     isOpenDeleteEmployeeDialog: boolean;
     loading: boolean;
     isRepayModalOpen: boolean;
+    isCancelDebtModalOpen: boolean;
     fcmToken?: string | null;
 }
 const initialState: TaskState = {
@@ -33,6 +34,7 @@ const initialState: TaskState = {
     isShowAddTask: false,
     loading: false,
     isRepayModalOpen: false,
+    isCancelDebtModalOpen: false
 };
 
 export const insertOne = createAsyncThunk(
@@ -177,6 +179,12 @@ export const sliceTask = createSlice({
         openRepayModal: (state) => {
             state.isRepayModalOpen = true; 
         },
+        openCancelDebtModal: (state) => {
+            state.isCancelDebtModalOpen = true; 
+        },
+        closeCancelDebtModal: (state) => {
+            state.isCancelDebtModalOpen = false;
+        },
         closeRepayModal: (state) => {
             state.isRepayModalOpen = false; // Tắt modal trả nợ
         },
@@ -230,5 +238,5 @@ export const sliceTask = createSlice({
     }
 })
 
-export const { addToken, showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog, openRepayModal, interactRepayModal, closeRepayModal } = sliceTask.actions;
+export const { addToken, showAll, addTask, updateOneTask, filterTasks, openDialog, interactDialog, openDetailDialog, interactDetailDialog, interactDeleteEmployeeDialog, interactEmployeeCreateDialog, openEmployeeCreateDialog, openDeleteEmployeeDialog, openRepayModal, interactRepayModal, closeRepayModal, openCancelDebtModal, closeCancelDebtModal } = sliceTask.actions;
 export const taskReducer = sliceTask.reducer;

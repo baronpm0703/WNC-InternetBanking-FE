@@ -3,7 +3,7 @@ import { DataTable } from "../Resusable/dataTable";
 import { debteeColumns } from "../Resusable/columns";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
-import { closeRepayModal } from "@/libs/slices/sliceTask";
+import { closeCancelDebtModal, closeRepayModal } from "@/libs/slices/sliceTask";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -22,7 +22,7 @@ import { toast } from "react-toastify";
 import currencyHelper from "@/helper/currencyHelper";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import converTypeHelper from "@/helpers/convertTypeHelper";
-import { fetchUnpaidInDebt, fetchAllDebt, fetchCreatedDebt, repayDebt, RepayDebtInfo } from "@/libs/slices/sliceDebt";
+import { fetchUnpaidInDebt, fetchAllDebt, fetchCreatedDebt, selectDebt, cancelDebt, repayDebt, RepayDebtInfo } from "@/libs/slices/sliceDebt";
 import ReactCodeInput from "react-code-input";
 import { useParams, useSearchParams } from "react-router-dom";
 import { sendOtpTransactionSameBank } from "@/libs/slices/sliceTransaction";
@@ -42,6 +42,11 @@ const OTPSchema = z.object({
     .length(6, { message: "OTP must be 6 digits" })
     .regex(/^\d{6}$/, { message: "Invalid OTP format" }),
 });
+
+const CancelDebtSchema = z.object({
+  detail: z.string().nonempty({ message: "Please enter the reason Cancel Repay Debt." }),
+});
+
 const DebtReminderUI = () => {
   const [searchParams] = useSearchParams();
 
@@ -60,6 +65,7 @@ const DebtReminderUI = () => {
   const debts = useAppSelector((state) => state.debt.inDebt);
   const createdDebts = useAppSelector((state) => state.debt.createdDebt);
   const unpaidDebts = useAppSelector((state) => state.debt.unpaidDebt);
+  const { isCancelDebtModalOpen } = useAppSelector((state) => state.task);
 
   useEffect(() => {
     if (accountInfo.account_number) {
@@ -106,6 +112,14 @@ const DebtReminderUI = () => {
     },
   });
 
+  const cancelDebtForm = useForm({
+    resolver: zodResolver(CancelDebtSchema),
+    defaultValues: {
+      debt_id: "",
+      detail: "",
+    },
+  });
+
   const handleCloseModal = () => {
     dispatch(closeRepayModal());
     repayForm.reset();
@@ -133,8 +147,30 @@ const DebtReminderUI = () => {
   };
 
   useEffect(() => {
+    if (selectedDebt?.id) {
+      cancelDebtForm.setValue("debt_id", selectedDebt.id);
+    }
+  }, [selectedDebt, cancelDebtForm]);
+  
+  const onSubmitCancelDebt = (data: { debt_id: string; detail: string }) => {
+    data.debt_id = selectedDebt?.id || "unknown-id";
+    dispatch(cancelDebt(data))
+      .unwrap()
+      .then(() => {
+        toast.success("Debt cancelled successfully!");
+        dispatch(fetchCreatedDebt(accountInfo.account_number));
+        dispatch(fetchUnpaidInDebt(accountInfo.account_number));
+        dispatch(closeCancelDebtModal());
+      })
+      .catch((error) => {
+        toast.error(error || "Failed to cancel debt");
+        console.error("Error cancelling debt:", error);
+      });
+  };
+
+  useEffect(() => {
     if (selectedDebt) {
-      repayForm.setValue("amount", String(selectedDebt.amount)); // Cập nhật giá trị form
+      repayForm.setValue("amount", String(selectedDebt.amount));
     }
   }, [selectedDebt, repayForm]);
 
@@ -213,6 +249,7 @@ const DebtReminderUI = () => {
         console.log("data debt remind", data)
         debtRemindForm.reset();
         toast.success("Debt remind created successfully!");
+        dispatch(fetchCreatedDebt(accountInfo.account_number));
       })
       .catch((err) => {
         console.error("Error creating debt remind:", err);
@@ -307,7 +344,7 @@ const DebtReminderUI = () => {
                                 </div>
                                 <DropdownMenuSeparator />
                                 {recipients
-                                  .filter((account) =>
+                                  .filter((account) =>account.bank_id === "6750a0c9a9dc441ad3fbfb9f" &&
                                     `${account.reminder_name} - ${account.account_number}`
                                       .toLowerCase()
                                       .includes(searchQuery.toLowerCase())
@@ -670,6 +707,87 @@ const DebtReminderUI = () => {
                 )}
               </DialogContent>
             </Dialog>
+            {selectedDebt && (
+              <Dialog open={isCancelDebtModalOpen} onOpenChange={() => { dispatch(closeCancelDebtModal()) }}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Cancel Debt</DialogTitle>
+                  </DialogHeader>
+                  <div className="p-4 bg-white rounded-lg shadow-md text-black">
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <p className="text-sm font-bold">Debtee</p>
+                        <p className="text-md">{selectedDebt.debtee_name} - {selectedDebt.debtee_number}</p>
+                      </div>
+                      <div className="flex justify-between">
+                        <p className="text-sm font-bold">Debtor</p>
+                        <p className="text-md">{selectedDebt.debtor_name} - {selectedDebt.debtor_number}</p>
+                      </div>
+                      <div className="flex justify-between">
+                        <p className="text-sm font-bold">Amount</p>
+                        <p className="text-xl text-green-600 font-bold">
+                          {currencyHelper.convertToCurrency(selectedDebt.amount)}
+                        </p>
+                      </div>
+                      <div className="flex justify-between">
+                        <p className="text-sm font-bold">Detail</p>
+                        <p className="text-md">
+                          {selectedDebt.detail}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <Form {...cancelDebtForm}>
+                    <form onSubmit={cancelDebtForm.handleSubmit(onSubmitCancelDebt)}>
+                      <div>
+                        <FormField
+                          control={cancelDebtForm.control}
+                          name="debt_id"
+                          render={({ field }) => (
+                            <FormItem className="hidden">
+                              <label htmlFor="debt_id" className="sr-only">Debt ID</label>
+                              <FormControl>
+                                <Input
+                                  id="debt_id"
+                                  {...field}
+                                  value={selectedDebt?.id || ""}
+                                  readOnly // Không dùng disabled
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div>
+                        <FormField
+                          control={cancelDebtForm.control}
+                          name="detail"
+                          render={({ field }) => (
+                            <FormItem className="flex-1">
+                              <FormControl>
+                                <textarea
+                                  placeholder="Details"
+                                  {...field}
+                                  className="w-full py-4 px-4 mb-2 bg-green-100 text-black rounded-xl border border-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 resize-none"
+                                  rows={4} // Số dòng mặc định
+                                />
+                              </FormControl>
+                              <FormMessage className="text-red-500 text-sm" />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <DialogFooter>
+                        <Button type="button" className="border border-black bg-white text-black" onClick={() => { dispatch(closeCancelDebtModal()) }}>
+                          Exit
+                        </Button>
+                        <Button type="submit" className="bg-red-500">Cancel Debt</Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </div>
       </div>

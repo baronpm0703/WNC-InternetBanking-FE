@@ -21,6 +21,7 @@ import { z } from "zod";
 import { fetchBankById, fetchExternalAccount, fetchExternalBanks } from "@/libs/slices/sliceExternalBank";
 import timeStampHelper from "@/helper/convertTimeStamp";
 import currencyHelper from "@/helper/currencyHelper";
+import apiClient from "@/helper/apiClient";
 
 const SaveBeneficiarySameBankSchema = z.object({
     account_number: z.string().nonempty({ message: "Please enter account number." }),
@@ -65,7 +66,7 @@ const ManageBeneficiaryUI = () => {
             const recipientsWithNames = await Promise.all(
                 recipients.map(async (recipient) => {
                     try {
-                        let accountData: { name?: string } | null = null; // Khai báo kiểu dữ liệu chính xác
+                        let accountData: { name?: string } | null = null;
                         let bankName = "";
                         if (recipient.bank_id !== "6750a0c9a9dc441ad3fbfb9f") {
                             accountData = await dispatch(fetchExternalAccount({
@@ -73,15 +74,16 @@ const ManageBeneficiaryUI = () => {
                                 bank_id: recipient.bank_id,
                             })).unwrap();
 
-                            // Sử dụng slice để fetch bank name
                             const bankData = await dispatch(fetchBankById(recipient.bank_id)).unwrap();
                             bankName = bankData.name || "Unknown Bank";
                         } else {
-                            // Fetch từ transaction target
-                            accountData = await dispatch(fetchTransactionTarget(recipient.account_number)).unwrap();
+                            // accountData = await dispatch(fetchTransactionTarget(recipient.account_number)).unwrap();
+                            const transactionTargetResponse = await apiClient.get(`/accounts/transaction-target`, {
+                                params: { account_number: recipient.account_number },
+                            });
+                            accountData = transactionTargetResponse.data?.target_data;
                             bankName = "Nhom10Bank";
                         }
-
                         return {
                             id: recipient.account_number,
                             identity: {
@@ -139,7 +141,6 @@ const ManageBeneficiaryUI = () => {
         setSamebankOrInterbankTab(tab);
     };
 
-
     const [toBankValue, setToBankValue] = useState('');
 
     const [inputValue, setInputValue] = useState<string>("");
@@ -192,6 +193,42 @@ const ManageBeneficiaryUI = () => {
             });
     };
 
+    function onSubmitSaveBeneficiarySamebank(data: { account_number: string; bank_id: string; reminder_name: string }) {
+        data.bank_id = "6750a0c9a9dc441ad3fbfb9f"
+        dispatch(saveBeneficiary(data))
+            .unwrap()
+            .then((response: any) => {
+                console.log("Beneficiary saved successfully:", response);
+                toast.success("Beneficiary saved successfully!");
+                console.log("data data", data)
+                saveBeneficiarySameBankForm.reset();
+                dispatch(fetchRecipients())
+                    .unwrap()
+                    .then((recipients) => {
+                        setInBeneficiaries(
+                            recipients.map((recipient: any) => ({
+                                id: recipient.account_number,
+                                identity: {
+                                    name: "Placeholder Name",
+                                    phone: "Not Available",
+                                    avt: "https://randomuser.me/api/portraits/placeholder.jpg",
+                                },
+                                bank: recipient.bank_id === "6750a0c9a9dc441ad3fbfb9f" ? "Nhom10Bank" : "Unknown Bank",
+                                memorableName: recipient.reminder_name,
+                            }))
+                        );
+                    })
+                    .catch((err) => {
+                        console.error("Error fetching updated recipients:", err);
+                        toast.error("Failed to fetch updated recipients!");
+                    });
+            })
+            .catch((error: any) => {
+                console.error("Error saving beneficiary:", error);
+                toast.error("Failed to save Beneficiary!");
+            });
+    }
+
 
     function onSubmitSaveBeneficiary(data: { account_number: string; bank_id: string; reminder_name: string }) {
         dispatch(saveBeneficiary(data))
@@ -199,6 +236,7 @@ const ManageBeneficiaryUI = () => {
             .then((response: any) => {
                 console.log("Beneficiary saved successfully:", response);
                 toast.success("Beneficiary saved successfully!");
+                console.log("data data", data)
                 saveBeneficiarySameBankForm.reset();
                 dispatch(fetchRecipients())
                     .unwrap()
@@ -317,7 +355,7 @@ const ManageBeneficiaryUI = () => {
 
                     {samebankOrInterbankTab === "sameBank" ? (
                         <Form {...saveBeneficiarySameBankForm}>
-                            <form onSubmit={saveBeneficiarySameBankForm.handleSubmit(onSubmitSaveBeneficiary)} className='w-full space-y-6 transition-all duration-1000 transform'>
+                            <form onSubmit={saveBeneficiarySameBankForm.handleSubmit(onSubmitSaveBeneficiarySamebank)} className='w-full space-y-6 transition-all duration-1000 transform'>
                                 {/* Transfer To */}
                                 <FormField
                                     control={saveBeneficiarySameBankForm.control}
