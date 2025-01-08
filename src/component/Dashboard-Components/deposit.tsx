@@ -6,7 +6,7 @@ import { AccountInfo, depositCustomer, DepositInfo, resetSelected } from "@/libs
 import { faCaretDown } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "react-toastify";
 import { z } from "zod";
@@ -28,6 +28,7 @@ const DepositUI = () => {
   const [open, setOpen] = useState(false);
   const { selectedCustomer, depositSuccess, loading, error, customerAccount } = useAppSelector(state => state.account);
   const [accountName, setAccountName] = useState("");
+  const suggestListRef = useRef<HTMLDivElement>(null);
   const [filteredAccounts, setFilteredAccounts] = useState<AccountInfo[]>([]);
 
   const dispatch = useAppDispatch();
@@ -78,6 +79,19 @@ const DepositUI = () => {
     }, 300),
     [customerAccount]
   );
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestListRef.current && !suggestListRef.current.contains(event.target as Node) && !suggestListRef.current.closest(".accountNumber_input")) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [open]);
 
   // Use `getValues` for the latest input value
   useEffect(() => {
@@ -161,7 +175,7 @@ const DepositUI = () => {
                             {...field}
                             onClick={() => setOpen(true)}
                             placeholder="Enter Account Number"
-                            className="bg-transparent text-white font-bold focus:outline-none"
+                            className="bg-transparent text-white font-bold focus:outline-none accountNumber_input"
                           />
                         </div>
 
@@ -194,8 +208,6 @@ const DepositUI = () => {
                     </FormItem>
                   )}
                 />
-
-
                 <Button
                   variant="ghost"
                   type="button"
@@ -207,7 +219,7 @@ const DepositUI = () => {
                   <FontAwesomeIcon icon={faCaretDown} className="text-white" />
                 </Button>
               </div>
-              <CommandList className={`${open ? "border" : ""} absolute rounded-lg top-[calc(100%)] left-0 w-full z-20 bg-gray-900 text-white`}>
+              <CommandList ref={suggestListRef} className={`${open ? "border" : ""} absolute rounded-lg top-[calc(100%)] left-0 w-full z-20 bg-gray-900 text-white`}>
                 {open &&
                   filteredAccounts && filteredAccounts.length > 0 &&
                   filteredAccounts.map((account) => (
@@ -218,6 +230,7 @@ const DepositUI = () => {
                         form.setValue("account_number", account.account_number);
                         form.setValue("name", account.name);
                         setAccountName(account.name);
+                        setOpen(false);
                       }}
                       key={account.account_number} value={account.account_number} className="bg-gray-900 px-5 hover:opacity-50 space-x-2 flex flex-row justify-between">
                       <div className="flex flex-col w-1/3">
