@@ -45,11 +45,7 @@ export default function Dashboard() {
       requestPermission();
       onMessage(messaging, (payload) => {
         console.log("Message received. ", payload.data);
-        // if (payload.notification && payload.notification.title === "Paid") {
-        //   toast.success(<ToastMessage title={payload.notification?.body || ""} payload={payload.data || {}} />);
-        // }
         toast.success(<ToastMessage title={payload.notification?.body || ""} payload={payload.data || {}} />);
-        // Show notification or update UI
       });
     }
   }, [fcmToken, accountInfo])

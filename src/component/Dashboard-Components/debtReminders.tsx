@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DataTable } from "../Resusable/dataTable";
 import { debteeColumns } from "../Resusable/columns";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -51,8 +51,8 @@ const DebtReminderUI = () => {
   const [searchParams] = useSearchParams();
 
   // Extract the debt_id query parameter
-  const debtId = searchParams.get("debt_id");
-  console.log("Debt_id: ", debtId);
+  const debtId = useMemo(() => searchParams.get("debt_id"), [searchParams]);
+  console.log("Debt ID:", debtId);
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const [selectedTransferTo, setSelectedTransferTo] = useState({ attribute1: '', attribute2: '' });

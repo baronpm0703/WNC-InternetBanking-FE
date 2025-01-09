@@ -29,6 +29,6 @@ export const requestPermission = async () => {
   } else if (permission === "denied") {
     console.log("Notification permission denied.");
     //notifications are blocked
-    alert("You denied for the notification");
+    // alert("You denied for the notification");
   }
 };
