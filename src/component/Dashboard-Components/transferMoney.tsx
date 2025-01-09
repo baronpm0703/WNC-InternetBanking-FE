@@ -202,7 +202,6 @@ const TransferUI = () => {
     );
   }, [accountInfo.account_balance]);
 
-
   function onSubmitSameBank(data: any) {
     const [, ownAccountNumber] = data.transferFrom.split(" - ");
     const [targetName, targetAccountNumber] = data.transferTo.split(" - ");
@@ -1619,7 +1618,7 @@ const TransferUI = () => {
             </button>
           </div>
           <div className="container mx-auto py-3">
-            <DataTable columns={transactionColumns} data={displayedTransactions.slice(-5)} loading={loading} filterable={false} />
+            <DataTable columns={transactionColumns} data={displayedTransactions.slice(-5).reverse()} loading={loading} filterable={false} />
             <Dialog
               open={isOpenDetailDialog}
               onOpenChange={(data) => {

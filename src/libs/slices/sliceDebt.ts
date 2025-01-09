@@ -102,7 +102,7 @@ export const fetchAllDebt = createAsyncThunk<Debt[], void, { rejectValue: string
                 })
             );
 
-            return debts;
+            return debts.reverse();
         } catch (error) {
             console.error("Error fetching all debts:", error);
             return rejectWithValue((error as Error).message);
@@ -159,7 +159,7 @@ export const fetchUnpaidInDebt = createAsyncThunk<Debt[], string, { rejectValue:
             );
 
 
-            return debts;
+            return debts.reverse();
         } catch (error) {
             return rejectWithValue((error as Error).message);
         }
@@ -212,7 +212,7 @@ export const fetchCreatedDebt = createAsyncThunk<Debt[], string, { rejectValue: 
                 })
             );
 
-            return createdDebts;
+            return createdDebts.reverse();
         } catch (error) {
             return rejectWithValue((error as Error).message);
         }

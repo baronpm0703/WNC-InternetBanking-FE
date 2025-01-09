@@ -72,20 +72,19 @@ const CustomerTransactionUI = () => {
   }, [date, transactions]);
 
   const filteredTransactions = useMemo(() => {
-    if (!inputValue.trim()) return filterByDate;
+    if (!inputValue.trim()) return filterByDate.reverse();
 
     return filterByDate.filter((transaction: TransactionRecord) => {
       const keyword = inputValue.toLowerCase();
 
       return (
-        transaction.sender_info?.name.toLowerCase().includes(keyword) || // Tìm theo tên người gửi
-        transaction.recipient_info?.name.toLowerCase().includes(keyword) || // Tìm theo tên người nhận
-        transaction.sender_info?.account_number.toLowerCase().includes(keyword) || // Tìm theo số tài khoản người gửi
-        transaction.recipient_info?.account_number.toLowerCase().includes(keyword) // Tìm theo số tài khoản người nhận
+        transaction.sender_info?.name.toLowerCase().includes(keyword) ||
+        transaction.recipient_info?.name.toLowerCase().includes(keyword) ||
+        transaction.sender_info?.account_number.toLowerCase().includes(keyword) ||
+        transaction.recipient_info?.account_number.toLowerCase().includes(keyword)
       );
-    });
+    }).reverse();
   }, [inputValue, filterByDate]);
-
 
   return (
     <div className="text-white font-sans flex">
@@ -167,7 +166,9 @@ const CustomerTransactionUI = () => {
         </div>
         {/* Transactions table */}
         <div className="container mx-auto py-3">
-          <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(filteredTransactions, accountInfo?.account_number)} loading={loading} filterable={false} />
+          <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(filteredTransactions, accountInfo?.account_number)} loading={loading} filterable={false} rowProps={(row) => ({
+            style: row.original.bankInfo === "External" ? { backgroundColor: "#fffae5", color: "#333" } : {},
+          })} />
           <Dialog
             open={isOpenDetailDialog}
             onOpenChange={(data) => {

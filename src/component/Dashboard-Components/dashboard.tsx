@@ -200,7 +200,7 @@ const DashboardUI = memo(() => {
             </button>
           </div>
           <div className="container mx-auto py-3">
-            <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(transactions, accountInfo.account_number).slice(-5)} loading={loading} filterable={false} />
+            <DataTable columns={transactionColumns} data={converTypeHelper.convertToCustomerTransacrionColumns(transactions, accountInfo.account_number).slice(-5).reverse()} loading={loading} filterable={false} />
             <Dialog
               open={isOpenDetailDialog}
               onOpenChange={(data) => {
