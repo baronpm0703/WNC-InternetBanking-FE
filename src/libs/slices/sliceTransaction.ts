@@ -154,13 +154,12 @@ export const fetchAccountTransaction = createAsyncThunk(
             }
 
             // Map over transactions and create promises for recipient and sender info
-            const res = await Promise.all(
+            const res = await Promise.allSettled(
                 response.data.map(async (transaction: TransactionByAccount) => {
                     const { isInterBank_transaction, bank_recipient_id, bank_sender_id, recipient_number, sender_number, _id, ...rest } = transaction;
 
                     // Fetch recipient and sender details
                     let RecipientPromise: Promise<any>;
-
                     let SenderPromise: Promise<any>;
 
                     if (!isInterBank_transaction) {
@@ -211,7 +210,12 @@ export const fetchAccountTransaction = createAsyncThunk(
                 })
             );
 
-            return res; // Final resolved array
+            // Filter out fulfilled promises and extract their values
+            const fulfilledTransactions = res
+                .filter((result) => result.status === "fulfilled")
+                .map((result) => (result as PromiseFulfilledResult<any>).value);
+
+            return fulfilledTransactions.reverse(); // Return only successfully resolved transactions
         } catch (error: any) {
             console.error("Transaction error: ", error);
             return rejectWithValue(
@@ -227,18 +231,18 @@ export const fetchSpecialTransaction = createAsyncThunk(
         try {
             const response = await apiClient.get("admin/get-external-transaction");
             console.log("Admin Transaction response: ", response.data);
+
             if (!response.data) {
                 return []; // Return an empty array if there's no data
             }
 
             // Map over transactions and create promises for recipient and sender info
-            const res = await Promise.all(
+            const res = await Promise.allSettled(
                 response.data.map(async (transaction: TransactionByAccount) => {
                     const { isInterBank_transaction, bank_recipient_id, bank_sender_id, recipient_number, sender_number, _id, ...rest } = transaction;
 
                     // Fetch recipient and sender details
                     let RecipientPromise: Promise<any>;
-
                     let SenderPromise: Promise<any>;
 
                     if (!isInterBank_transaction) {
@@ -271,8 +275,9 @@ export const fetchSpecialTransaction = createAsyncThunk(
                             }
                         }) : apiClient.get('accounts/transaction-target', {
                             params: { account_number: sender_number },
-                        })
+                        });
                     }
+
                     // Resolve both promises concurrently
                     const [RecipientResponse, SenderResponse] = await Promise.all([RecipientPromise, SenderPromise]);
 
@@ -288,7 +293,13 @@ export const fetchSpecialTransaction = createAsyncThunk(
                     };
                 })
             );
-            return res; // Final resolved array
+
+            // Filter out fulfilled promises and extract their values
+            const fulfilledTransactions = res
+                .filter((result) => result.status === "fulfilled")
+                .map((result) => (result as PromiseFulfilledResult<any>).value);
+
+            return fulfilledTransactions.reverse(); // Return only successfully resolved transactions
         } catch (error: any) {
             console.error("Transaction error: ", error);
             return rejectWithValue(
@@ -296,7 +307,7 @@ export const fetchSpecialTransaction = createAsyncThunk(
             );
         }
     }
-)
+);
 
 export const sliceTransaction = createSlice({
     initialState,

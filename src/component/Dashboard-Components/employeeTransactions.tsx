@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { transactionColumns } from "../Resusable/columns";
+import { transactionColumns, transactionColumnsok } from "../Resusable/columns";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useAppDispatch, useAppSelector } from "@/libs/hooks";
 import { interactDetailDialog } from "@/libs/slices/sliceTask";
@@ -135,7 +135,7 @@ const EmployeeTransactionUI = () => {
             </Popover>
           </div>
           <DataTable
-            columns={transactionColumns}
+            columns={transactionColumnsok}
             data={converTypeHelper.convertToAdminransacrionColumns(filterByDate)}
             loading={loading}
             filterable={true}

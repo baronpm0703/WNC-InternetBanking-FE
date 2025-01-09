@@ -619,48 +619,65 @@ export const transactionColumns: ColumnDef<Transaction>[] = [
 
 export const transactionColumnsok: ColumnDef<Transaction>[] = [
   {
+    accessorKey: "select",
+    header: ({ table }) => (
+      <Checkbox
+        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
+        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
+        onCheckedChange={(checked) => table.toggleAllPageRowsSelected(!!checked)}
+        aria-label="Select all rows"
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        className=" border-gray-300 bg-gray-100 text-indigo-600 ring-2 ring-offset-2 ring-indigo-500 focus:ring-indigo-500 focus:ring-offset-1 transition-all duration-200 ease-in-out hover:border-indigo-600 hover:ring-indigo-600"
+        checked={row.getIsSelected()}
+        onCheckedChange={(checked) => row.toggleSelected(!!checked)}
+        aria-label="Select this row"
+      />
+    ),
+    enableSorting: false,
+    enableHiding: false
+  },
+  {
     accessorKey: "identity",
-    header: () => <p className="text-left text-[#E0F{FBC]">Name</p>,
+    header: () => <p className="text-left text-[#E0FFBC]">Name</p>,
     cell: ({ row }) => {
       const identity = row.original.identity;
-      const isExternal = row.original.bankInfo === "External";
       return (
-        <div
-          className={`flex items-center ${isExternal ? "text-green-300" : ""}`}
-        >
+        <div className="flex items-center">
           <img src={identity.avt} alt="avatar" className="w-8 h-8 rounded-full" />
           <div className="ml-2">
             <p className="text-left font-medium">{identity.name}</p>
           </div>
         </div>
-      );
-    },
+      )
+    }
   },
   {
     accessorKey: "date",
     header: () => <p className="text-left text-[#E0FFBC]">Transaction Date</p>,
     cell: ({ row }) => {
       const date = row.original.transaction_date;
-      const isExternal = row.original.bankInfo === "External";
-      return (
-        <div className={`text-left font-medium ${isExternal ? "bg-yellow-100 text-red-600" : ""}`}>
-          {date}
-        </div>
-      );
-    },
+      return <div className="text-left font-medium">{date}</div>
+    }
   },
   {
     accessorKey: "bankInfo",
     header: () => <p className="text-left text-[#E0FFBC]">Bank</p>,
     cell: ({ row }) => {
       const bankInfo: string | BankInfo = row.original.bankInfo;
-      const isExternal = row.original.bankInfo === "External";
-      return (
-        <div className={`text-left font-medium ${isExternal ? "bg-yellow-100 text-red-600" : ""}`}>
-          {typeof bankInfo === "string" ? bankInfo : bankInfo.name}
-        </div>
-      );
-    },
+      if (typeof bankInfo != "string") {
+        return <div className="text-left font-medium">{(bankInfo as BankInfo).name}</div>
+      } else return <div className="text-left font-medium">{bankInfo}</div>
+    }
+  },
+  {
+    accessorKey: "bankName",
+  },
+  {
+    accessorKey: "payment_method",
+    header: () => <p className="text-left text-[#E0FFBC]">Payment Method</p>,
   },
   {
     accessorKey: "amount",
@@ -671,61 +688,46 @@ export const transactionColumnsok: ColumnDef<Transaction>[] = [
         style: "currency",
         currency: "USD",
       }).format(amount);
-      const isExternal = row.original.bankInfo === "External";
-      return (
-        <div className={`text-left font-medium ${isExternal ? "bg-yellow-100 text-red-600" : ""}`}>
-          {formatted}
-        </div>
-      );
-    },
+      return <div className="text-left font-medium">{formatted}</div>
+    }
   },
   {
     accessorKey: "status",
     header: () => <p className="text-left text-[#E0FFBC]">Status</p>,
     cell: ({ row }) => {
       const status = row.original.status;
-      const isExternal = row.original.bankInfo === "External";
       return (
-        <div
-          className={`
-            text-center w-full px-1 text-black py-1 rounded-md font-medium ${status === "Received"
-              ? "bg-green-500 text-white"
-              : status === "Transfered"
-                ? "bg-blue-500 text-white"
-                : "bg-red-500 text-white"
-            } ${isExternal ? "border border-yellow-400" : ""}
-          `}
+        <div className={`
+          text-center w-full px-1 text-black py-1 rounded-md font-medium ${status === "Received" ? "bg-[#02b1598d] text-[#d2f8a7]" : status === "Transfered" ? "bg-[#E0FFBC] text-[#02b1598d]" : "bg-[#F56565]"}
+        `}
         >
           <p>{status}</p>
+
         </div>
-      );
-    },
+      )
+    }
   },
   {
     id: "actions",
     cell: ({ row }) => {
       const dispatch = useAppDispatch();
       const transaction = row.original; // Access Data's row
-      const isExternal = row.original.bankInfo === "External";
       const handleDetail = () => {
         console.log("Click detail", transaction);
         dispatch(openDetailDialog());
         dispatch(selectTransaction(transaction));
-      };
+      }
       return (
         <div className="flex justify-center">
-          <button
-            className={`px-5 border rounded-3xl ${isExternal ? "bg-yellow-100 text-red-600" : "bg-gray-200"
-              }`}
-            onClick={handleDetail}
-          >
+          <Button variant="ghost" className=" px-5 border rounded-3xl" onClick={handleDetail}>
             Detail
-          </button>
+          </Button>
         </div>
-      );
-    },
-  },
-];
+
+      )
+    }
+  }
+]
 
 export const customerAccountColumns: ColumnDef<customerAccount>[] = [
   {
