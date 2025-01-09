@@ -69,8 +69,9 @@ export interface slicePayload<T> {
 export const createDebtRemind = createAsyncThunk(
   "debt/create",
   async (debtData: { account_number: string; amount: string; details: string }, { rejectWithValue }) => {
+    const payload = {...debtData, amount: +debtData.amount};
     try {
-      const response = await apiClient.post("/debt", debtData);
+      const response = await apiClient.post("/debt", payload);
       return response.data;
     } catch (error: any) {
       console.error("Error creating debt remind:", error);
